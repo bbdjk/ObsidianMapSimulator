@@ -8,7 +8,7 @@
     <meta name="theme-color" content="#1e1e1e">
     <link rel="apple-touch-icon" href="icon-192.png">
 
-    <title>Obsidian Protocol Map Tool v54 (Final Integrated)</title>
+    <title>Obsidian Protocol Map Tool v54 (Final Fixed)</title>
     <style>
         * { box-sizing: border-box; }
         body {
@@ -86,7 +86,7 @@
             height: 90px;
         }
 
-        /* 정보 패널 디자인 수정 (Dark Range Mode) */
+        /* 정보 패널 */
         #info-panel {
             flex: 1;
             background: #2d2d2d;
@@ -104,7 +104,7 @@
         #info-panel.edit-mode { border-color: #009688; background-color: #004d40; }
         #info-panel.sim-mode { border-color: #9c27b0; background-color: #4a148c; }
         
-        /* [수정됨] 사거리 모드: 어두운 배경 + 주황색 테두리/글씨 */
+        /* [수정됨] 사거리 모드: 검은 배경 + 주황색 테두리/글씨 */
         #info-panel.range-mode { 
             border-color: #ff9800; 
             background-color: #111; 
@@ -163,7 +163,8 @@
         /* 타일 스타일 */
         .subcell.sub-visible { background-color: rgba(76, 175, 80, 0.6) !important; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.15); }
         .subcell.in-range { background-color: rgba(255, 235, 59, 0.25); box-shadow: inset 0 0 0 1px rgba(255, 235, 59, 0.5); }
-        .subcell.sub-visible.in-range { background-color: rgba(0, 230, 118, 0.65) !important; box-shadow: inset 0 0 0 1px #fff; }
+        .subcell.sub-visible.in-range { background-color: rgba(0, 191, 255, 0.65) !important; box-shadow: inset 0 0 0 1px #fff; }
+        
         .subcell.obs-full { background-color: #111; } 
         .subcell.obs-partial { background-color: #777; background-image: repeating-linear-gradient(45deg, #666, #666 2px, #777 2px, #777 4px); }
         .subcell.obs-weak { background-color: #009688; }
@@ -173,7 +174,7 @@
 
         .l-green { background-color: rgba(76, 175, 80, 0.8); }
         .l-yellow { background-color: rgba(255, 235, 59, 0.5); border: 1px dashed #fff; }
-        .l-blue { background-color: rgba(0, 230, 118, 0.8); }
+        .l-blue { background-color: rgba(0, 191, 255, 0.8); }
         
         @media screen and (orientation: portrait) {
             body::after {
@@ -698,11 +699,12 @@
         function toggleArea1() { isArea1Active=!isArea1Active; updateAreaOverlay(); document.getElementById('btn-area1').classList.toggle('active'); }
         function toggleArea2() { isArea2Active=!isArea2Active; updateAreaOverlay(); document.getElementById('btn-area2').classList.toggle('active'); }
 
-        // Start (PWA Service Worker Registration)
+        // ✅ [필수] PWA 서비스 워커 등록 코드 복구 (이게 있어야 설치됨)
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./service-worker.js')
-                    .then(() => console.log('Service Worker Registered'));
+                    .then(() => console.log('Service Worker Registered'))
+                    .catch((err) => console.log('SW Failed', err));
             });
         }
 
