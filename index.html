@@ -9,6 +9,17 @@
     <link rel="icon" href="./icon-192.png">
     <link rel="apple-touch-icon" href="./icon-192.png">
 
+    <script>
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/ObsidianMapSimulator/service-worker.js");
+
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      window.location.reload();
+    });
+  }
+</script>
+
+
     <title>Obsidian Protocol Map Tool v54 (Final Fixed)</title>
     <style>
         * { box-sizing: border-box; }
@@ -657,3 +668,4 @@
     </script>
 </body>
 </html>
+
