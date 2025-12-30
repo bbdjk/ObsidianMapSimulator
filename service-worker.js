@@ -1,4 +1,4 @@
-const CACHE_NAME = "obsidian-map-v4.3"; // 배포할 때마다 v3, v4...로 올리세요.
+const CACHE_NAME = "obsidian-map-v4.4"; // 배포할 때마다 v3, v4...로 올리세요.
 
 const ASSETS = [
   "/ObsidianMapSimulator/",
@@ -33,6 +33,7 @@ self.addEventListener("fetch", (event) => {
     caches.match(req).then((cached) => cached || fetch(req))
   );
 });
+
 
 
 
