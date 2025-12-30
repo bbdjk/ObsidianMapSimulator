@@ -2,15 +2,29 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, orientation=landscape">
-    <link rel="manifest" href="./manifest.json?v=6">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, orientation=landscape, viewport-fit=cover">
+    
+    <link rel="manifest" href="./manifest.json?v=7">
     <meta name="theme-color" content="#1e1e1e">
     <link rel="icon" href="./icon-192.png">
+
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="ObsidianMap">
     <link rel="apple-touch-icon" href="./icon-192.png">
 
-    <title>Obsidian Protocol Map Tool v59 (1.5x Size)</title>
+    <script>
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("./service-worker.js");
+        navigator.serviceWorker.addEventListener("controllerchange", () => {
+          window.location.reload();
+        });
+      }
+    </script>
+
+    <title>Obsidian Protocol Map Tool v60 (iOS Ready)</title>
     <style>
-        /* 사용자님이 업로드해주신 원본 스타일 그대로 적용 + 크기 수정 */
+        /* 기존 스타일 유지 (타일 크기 65px 등 v59 버전 그대로) */
         body {
             font-family: 'Segoe UI', sans-serif;
             background-color: #1e1e1e;
@@ -23,6 +37,9 @@
             user-select: none;
             height: 100vh;
             overflow: hidden;
+            /* 아이폰 노치 대응 */
+            padding-left: env(safe-area-inset-left);
+            padding-right: env(safe-area-inset-right);
         }
 
         .main-area {
@@ -164,7 +181,6 @@
             touch-action: none;
         }
 
-        /* ✅ [수정됨] 타일 크기를 45px -> 65px로 키움 (약 1.5배) */
         .tile {
             width: 65px; height: 65px; background-color: #fff;
             display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr);
@@ -189,8 +205,7 @@
 
         .coord-label {
             position: absolute; top: 1px; left: 2px;
-            font-size: 11px; /* 글자 크기도 살짝 키움 */
-            color: #ccc; z-index: 10; pointer-events: none; font-family: monospace;
+            font-size: 11px; color: #ccc; z-index: 10; pointer-events: none; font-family: monospace;
         }
 
         .subcell { border: 0.1px solid rgba(0,0,0,0.05); box-sizing: border-box; }
@@ -386,11 +401,11 @@
     </div>
 
     <script>
-        // PWA Service Worker 등록
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./service-worker.js')
-                    .then(() => console.log('Service Worker Registered'));
+                    .then(() => console.log('Service Worker Registered'))
+                    .catch((err) => console.log('SW Failed', err));
             });
         }
 
@@ -932,8 +947,7 @@
 
         // --- 그리드 생성 및 변경 ---
         function createGrid() {
-            /* ✅ [수정] 타일 크기 1.5배 적용 (45px -> 65px) */
-            container.style.gridTemplateColumns = `repeat(${currentGridWidth}, 65px)`;
+            container.style.gridTemplateColumns = `repeat(${currentGridWidth}, 65px)`; // 타일 크기 65px
             container.style.gridTemplateRows = `repeat(${currentGridHeight}, 65px)`;
             container.innerHTML = '';
             tiles = [];
