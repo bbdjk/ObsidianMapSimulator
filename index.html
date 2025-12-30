@@ -60,6 +60,7 @@
             overflow: hidden;
         }
 
+        /* 상단바 (고정) */
         .ui-header {
             flex: 0 0 auto;
             background-color: #252525;
@@ -75,6 +76,7 @@
         }
         .controls { display: flex; gap: 6px; padding: 0 15px; align-items: center; }
 
+        /* 중앙 맵 독립 스크롤 영역 */
         .main-area {
             flex: 1 1 auto;
             width: 100%;
@@ -90,12 +92,16 @@
         }
 
         #grid-container {
-            display: grid; gap: 1px;
-            background-color: #444; border: 4px solid #333;
-            padding: 2px; border-radius: 4px;
+            display: grid;
+            gap: 1px;
+            background-color: #444;
+            border: 4px solid #333;
+            padding: 2px;
+            border-radius: 4px;
             margin: auto;
         }
 
+        /* 1.5배 확대 베이스 타일 */
         .tile {
             width: var(--tile-size);
             height: var(--tile-size);
@@ -130,9 +136,9 @@
             text-align: center;
         }
 
-        /* --- 원본 효과들 보존 --- */
+        /* --- 원본 디자인 디테일 --- */
         #range-text { font-size: 1.4em; font-weight: bold; color: #4fc3f7; margin-bottom: 5px; white-space: pre-wrap; }
-        #detail-text { font-size: 1.1em; color: #aaa; margin-bottom: 5px; }
+        #detail-text { font-size: 1.1em; color: #aaa; margin-bottom: 3px; }
         #status-text { font-size: 0.95em; color: #888; font-style: italic; margin-bottom: 10px; }
         
         .legend-box { display: flex; justify-content: center; gap: 15px; margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px; font-size: 0.85em; }
@@ -161,8 +167,8 @@
         .tile.start::after { content: ''; position: absolute; inset: 0; background-color: rgba(33, 150, 243, 0.6); border: 2px solid #2196f3; z-index: 5; pointer-events: none; }
         .tile.target::before { content: ''; position: absolute; inset: 0; background-color: rgba(244, 67, 54, 0.5); border: 2px solid #e53935; z-index: 6; pointer-events: none; }
         .tile.path::before { content: ''; position: absolute; inset: 2px; background-color: rgba(255, 235, 59, 0.3); border: 2px dashed #fdd835; z-index: 4; pointer-events: none; }
-        .tile.path-tick-0::before { background-color: rgba(33, 150, 243, 0.4); }
-        .tile.path-tick-1::before { background-color: rgba(255, 235, 59, 0.4); }
+        .tile.path-tick-0::before { background-color: rgba(33, 150, 243, 0.4); border: 2px dashed #fdd835; }
+        .tile.path-tick-1::before { background-color: rgba(255, 235, 59, 0.4); border: 2px dashed #fdd835; }
         .tile.path-tick-2::before { background-color: rgba(244, 67, 54, 0.4); border: 2px dashed #d32f2f; }
 
         .coord-label { position: absolute; top: 1px; left: 2px; font-size: 11px; color: #ccc; z-index: 10; pointer-events: none; font-family: monospace; }
@@ -217,9 +223,9 @@
 
     <div class="bottom-ui">
         <div id="sim-controls" style="display:none; align-items:center; gap:15px; margin-bottom:12px; background:#333; padding:8px 20px; border-radius:20px;">
-            <button class="tick-btn" onclick="changeVal(-1)" style="width:35px; height:35px; border-radius:50%; font-size:1.4em;">-</button>
+            <button onclick="changeVal(-1)" style="width:35px; height:35px; border-radius:50%; font-size:1.4em; padding:0;">-</button>
             <span id="tick-display" style="font-weight:bold;">틱 갯수 : 3</span>
-            <button class="tick-btn" onclick="changeVal(1)" style="width:35px; height:35px; border-radius:50%; font-size:1.4em;">+</button>
+            <button onclick="changeVal(1)" style="width:35px; height:35px; border-radius:50%; font-size:1.4em; padding:0;">+</button>
         </div>
 
         <div id="info-panel">
@@ -325,7 +331,7 @@
             Object.keys(savedMaps).sort().forEach(name => {
                 const opt = document.createElement('option'); opt.value = name; opt.textContent = name; mapSelector.appendChild(opt);
             });
-            const newOpt = document.createElement('option'); newOpt.value = "__NEW__"; newOpt.textContent = "+ 새 맵"; mapSelector.appendChild(newOpt);
+            const newOpt = document.createElement('option'); newOpt.value = "__NEW__"; newOpt.textContent = "+ 새 맵 추가"; mapSelector.appendChild(newOpt);
         }
 
         function createGrid() {
@@ -342,7 +348,7 @@
                         const sub = document.createElement('div'); sub.className = 'subcell'; tile.appendChild(sub);
                     }
                     tile.addEventListener('mousedown', (e) => {
-                        isMouseDown = true; 
+                        isMouseDown = true;
                         if (isEditorMode) handleEditorClick(e, x, y);
                         else if (isSimMode) handleSimClick(x, y);
                         else handleMeasureClick(x, y);
@@ -493,22 +499,11 @@
             const sx = startPoint.x, sy = startPoint.y;
             tiles[ty * currentGridWidth + tx].classList.add('target');
             const dx = Math.abs(tx - sx), dy = Math.abs(ty - sy);
-            const cells = getLPathCells(startPoint, {x: tx, y: ty}, (dx > dy) ? 'x' : 'y');
-            cells.forEach(c => { const idx = c.y * currentGridWidth + c.x; if(tiles[idx]) tiles[idx].classList.add('path'); });
+            const xDir = tx > sx ? 1 : -1; const yDir = ty > sy ? 1 : -1;
+            for(let i=1; i<=dx; i++) tiles[sy * currentGridWidth + (sx + i * xDir)].classList.add('path');
+            for(let i=1; i<=dy; i++) tiles[(sy + i * yDir) * currentGridWidth + tx].classList.add('path');
             rangeText.innerHTML = `사거리: <span style="color:white">${dx + dy}</span>`;
             detailText.innerText = `가로 ${dx} + 세로 ${dy}`;
-        }
-
-        function getLPathCells(p1, p2, axis) {
-            let cells = []; let cx, cy;
-            if (axis === 'y') { cx = p1.x; cy = p2.y; } else { cx = p2.x; cy = p1.y; }
-            let xDir = cx > p1.x ? 1 : -1; let yDir = cy > p1.y ? 1 : -1;
-            for (let i = 1; i <= Math.abs(cx - p1.x); i++) cells.push({x: p1.x + i * xDir, y: p1.y});
-            for (let i = 1; i <= Math.abs(cy - p1.y); i++) cells.push({x: cx, y: p1.y + i * yDir});
-            xDir = p2.x > cx ? 1 : -1; yDir = p2.y > cy ? 1 : -1;
-            for (let i = 1; i <= Math.abs(p2.x - cx); i++) cells.push({x: cx + i * xDir, y: cy});
-            for (let i = 1; i <= Math.abs(p2.y - cy); i++) cells.push({x: cx, y: cy + i * yDir});
-            return cells;
         }
 
         function handleSimClick(x, y) {
@@ -516,8 +511,8 @@
             if (simSegments.length < maxTicks) {
                 let last = simSegments.length === 0 ? startPoint : simSegments[simSegments.length-1].end;
                 simSegments.push({start: last, end: {x, y}, dist: Math.abs(x-last.x)+Math.abs(y-last.y)});
-                if(simSegments.length === maxTicks) statusText.textContent = "이동 완료! (클릭 시 리셋)";
                 updateLOS();
+                if(simSegments.length === maxTicks) statusText.textContent = "이동 완료! (클릭 시 리셋)";
             } else resetSimState();
         }
 
@@ -532,62 +527,68 @@
         }
 
         function drawPath(p1, p2, idx) {
-            const cells = getLPathCells(p1, p2, (Math.abs(p2.x-p1.x) > Math.abs(p2.y-p1.y)) ? 'x' : 'y');
-            cells.forEach(c => { const tile = tiles[c.y * currentGridWidth + c.x]; if(tile) tile.classList.add(`path-tick-${idx % 3}`); });
+            const dx = Math.abs(p2.x-p1.x); const dy = Math.abs(p2.y-p1.y);
+            const xDir = p2.x > p1.x ? 1 : -1; const yDir = p2.y > p1.y ? 1 : -1;
+            for(let i=1; i<=dx; i++) { let t = tiles[p1.y * currentGridWidth + (p1.x + i * xDir)]; if(t) t.classList.add(`path-tick-${idx % 3}`); }
+            for(let i=1; i<=dy; i++) { let t = tiles[(p1.y + i * yDir) * currentGridWidth + p2.x]; if(t) t.classList.add(`path-tick-${idx % 3}`); }
         }
 
-        function resetSimState() { startPoint = null; simSegments = []; tiles.forEach(t => { t.classList.remove('start','path','target','path-tick-0','path-tick-1','path-tick-2'); }); updateLOS(); }
-        function resetMeasureState() { startPoint = null; isLocked = false; tiles.forEach(t => t.classList.remove('start','target','path')); updateLOS(); }
+        function resetSimState() { startPoint = null; simSegments = []; tiles.forEach(t => t.className = 'tile'); updateLOS(); }
+        function resetMeasureState() { startPoint = null; isLocked = false; tiles.forEach(t => t.classList.remove('start', 'target', 'path')); updateLOS(); }
 
         function loadMap(name) {
             const data = defaultMaps[name]; if(!data) return;
-            tiles.forEach(t => { for(let i=0; i<9; i++) t.children[i+1].className = 'subcell'; t.querySelector('.coord-label').style.color = '#ccc'; });
+            tiles.forEach(t => { for(let i=0; i<9; i++) t.children[i+1].className = 'subcell'; });
             data.forEach(d => renderTileObject(tiles[d.y * currentGridWidth + d.x], d));
             document.querySelectorAll('.controls button').forEach(b => b.classList.remove('active'));
             document.getElementById('btn-'+name)?.classList.add('active'); updateLOS();
         }
 
-        function handleMapSelect() { const sel = mapSelector.value; if (sel === "__NEW__") { clearMapData(true); currentEditingMapName = null; } else if (savedMaps[sel]) loadCustomMap(sel); }
-        function loadCustomMap(name) { const obj = savedMaps[name]; currentGridWidth = obj.width; currentGridHeight = obj.height; createGrid(); obj.tiles.forEach(d => renderTileObject(tiles[d.y * currentGridWidth + d.x], d)); currentEditingMapName = name; currentMapNameDisplay.innerText = `현재 맵: ${name}`; }
-        function saveMapAs() { const name = prompt("이름 입력", currentEditingMapName || ""); if(!name) return; savedMaps[name] = {width: currentGridWidth, height: currentGridHeight, tiles: getMapDataFromScreen()}; localStorage.setItem('obsidian_saved_maps_v2', JSON.stringify(savedMaps)); refreshMapDropdown(); }
+        function renderTileObject(tile, data) {
+            if(!tile) return;
+            const subs = tile.querySelectorAll('.subcell');
+            if (data.t === 'FULL') subs.forEach(s => s.classList.add('obs-full'));
+            else if (data.t === 'BLK_T') [0,1,2].forEach(i=>subs[i+1].classList.add('obs-full'));
+            else if (data.t === 'BLK_B') [6,7,8].forEach(i=>subs[i+1].classList.add('obs-full'));
+            else if (data.t === 'BLK_L') [0,3,6].forEach(i=>subs[i+1].classList.add('obs-full'));
+            else if (data.t === 'BLK_R') [2,5,8].forEach(i=>subs[i+1].classList.add('obs-full'));
+            else if (data.t === 'BLK_M_H') [3,4,5].forEach(i=>subs[i+1].classList.add('obs-full'));
+            else if (data.t === 'BLK_M_V') [1,4,7].forEach(i=>subs[i+1].classList.add('obs-full'));
+            else if (data.t === 'CONTAINER' && data.idx) data.idx.forEach(i => subs[i+1].classList.add('obs-weak'));
+        }
+
+        function handleMapSelect() { const sel = mapSelector.value; if (sel === "__NEW__") { clearMapData(true); } else if (savedMaps[sel]) loadCustomMap(sel); }
+        function loadCustomMap(n) { const o = savedMaps[n]; currentGridWidth = o.width; currentGridHeight = o.height; createGrid(); o.tiles.forEach(d => renderTileObject(tiles[d.y * currentGridWidth + d.x], d)); currentEditingMapName = n; currentMapNameDisplay.innerText = `현재 맵: ${n}`; }
+        
+        function getMapDataFromScreen() {
+            const arr = [];
+            tiles.forEach((t, i) => {
+                const x = i % currentGridWidth, y = Math.floor(i / currentGridWidth);
+                const subs = t.querySelectorAll('.subcell');
+                const isFull = Array.from(subs).filter(s => s.classList.contains('obs-full')).length === 9;
+                if(isFull) arr.push({x, y, t:'FULL'});
+                else {
+                    const idx = Array.from(subs).map((s, j) => s.classList.contains('obs-weak') ? j : null).filter(j => j !== null);
+                    if(idx.length > 0) arr.push({x, y, t:'CONTAINER', idx});
+                }
+            });
+            return arr;
+        }
+
+        function saveMapAs() { const n = prompt("이름?"); if(n) { savedMaps[n] = {width: currentGridWidth, height: currentGridHeight, tiles: getMapDataFromScreen()}; localStorage.setItem('obsidian_saved_maps_v2', JSON.stringify(savedMaps)); refreshMapDropdown(); } }
         function deleteCurrentMap() { if(!currentEditingMapName) return; delete savedMaps[currentEditingMapName]; localStorage.setItem('obsidian_saved_maps_v2', JSON.stringify(savedMaps)); refreshMapDropdown(); clearMapData(true); }
 
         function handleEditorClick(e, x, y) {
-            const tile = tiles[y * currentGridWidth + x]; const target = e.target;
-            if (currentTool === 'CUSTOM_DRAW' && target.classList.contains('subcell')) { target.classList.add('obs-weak'); return; }
+            const tile = tiles[y * currentGridWidth + x]; if(!tile) return;
+            if (currentTool === 'CUSTOM_DRAW' && e.target.classList.contains('subcell')) { e.target.classList.add('obs-weak'); return; }
             for(let i=0; i<9; i++) tile.children[i+1].className = 'subcell';
             if (currentTool !== 'ERASER') renderTileObject(tile, { t: currentTool });
         }
 
-        function renderTileObject(tile, data) {
-            const subs = tile.querySelectorAll('.subcell'); const type = data.t;
-            if (type === 'FULL') subs.forEach(s => s.classList.add('obs-full'));
-            else if (type === 'BLK_T') [0,1,2].forEach(i=>subs[i+1].classList.add('obs-full'));
-            else if (type === 'BLK_B') [6,7,8].forEach(i=>subs[i+1].classList.add('obs-full'));
-            else if (type === 'BLK_L') [0,3,6].forEach(i=>subs[i+1].classList.add('obs-full'));
-            else if (type === 'BLK_R') [2,5,8].forEach(i=>subs[i+1].classList.add('obs-full'));
-            else if (type === 'BLK_M_H') [3,4,5].forEach(i=>subs[i+1].classList.add('obs-full'));
-            else if (type === 'BLK_M_V') [1,4,7].forEach(i=>subs[i+1].classList.add('obs-full'));
-            else if (type === 'CONTAINER' && data.idx) data.idx.forEach(i => subs[i+1].classList.add('obs-weak'));
-        }
-
-        function getMapDataFromScreen() {
-            const arr = [];
-            for(let i=0; i<tiles.length; i++) {
-                const x = i % currentGridWidth, y = Math.floor(i / currentGridWidth);
-                const subs = tiles[i].querySelectorAll('.subcell');
-                const fulls = Array.from(subs).filter(s => s.classList.contains('obs-full'));
-                if(fulls.length === 9) arr.push({x, y, t:'FULL'});
-                else {
-                    const weaks = Array.from(subs).map((s, idx) => s.classList.contains('obs-weak') ? idx : null).filter(idx => idx !== null);
-                    if(weaks.length > 0) arr.push({x, y, t:'CONTAINER', idx:weaks});
-                }
-            }
-            return arr;
-        }
-
-        function clearMapData(f) { if(!f && !confirm("지우기?")) return; tiles.forEach(t => { for(let i=0; i<9; i++) t.children[i+1].className = 'subcell'; }); }
         function selectTool(t) { currentTool = t; document.querySelectorAll('.tool-btn').forEach(b => b.classList.toggle('selected', b.innerText.includes(t))); }
+        function exportMapCode() { const d = getMapDataFromScreen(); importInput.value = JSON.stringify({width: currentGridWidth, height: currentGridHeight, tiles: d}); }
+        function importMapCode() { try { const o = JSON.parse(importInput.value); currentGridWidth = o.width; currentGridHeight = o.height; createGrid(); o.tiles.forEach(d => renderTileObject(tiles[d.y * currentGridWidth + d.x], d)); } catch(e) { alert("오류"); } }
+        function clearMapData(f) { if(!f && !confirm("지우기?")) return; tiles.forEach(t => { for(let i=0; i<9; i++) t.children[i+1].className = 'subcell'; }); }
 
         initMapStorage();
         createGrid();
