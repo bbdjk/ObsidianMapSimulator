@@ -8,7 +8,6 @@ const ASSETS = [
   "/ObsidianMapSimulator/icon-512.png",
 ];
 
-// install: 캐시 채우고 즉시 대기상태 스킵
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
@@ -16,7 +15,6 @@ self.addEventListener("install", (event) => {
   self.skipWaiting();
 });
 
-// activate: 이전 캐시 정리 + 즉시 컨트롤
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     (async () => {
@@ -27,24 +25,11 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-// fetch: 캐시 우선, 없으면 네트워크
 self.addEventListener("fetch", (event) => {
   const req = event.request;
-
-  // GET만 캐시 처리(안전)
   if (req.method !== "GET") return;
 
   event.respondWith(
     caches.match(req).then((cached) => cached || fetch(req))
-
-    if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("/ObsidianMapSimulator/service-worker.js");
-
-  navigator.serviceWorker.addEventListener("controllerchange", () => {
-    window.location.reload();
-  });
-}
-
   );
 });
-
