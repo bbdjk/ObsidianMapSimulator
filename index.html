@@ -4,12 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, orientation=landscape">
     
-    <link rel="manifest" href="manifest.json">
+    <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#1e1e1e">
-    <link rel="apple-touch-icon" href="icon-192.png">
+    <link rel="apple-touch-icon" href="./icon-192.png">
 
-    <title>Obsidian Protocol Map Tool v54 (Final Fixed)</title>
+    <title>Obsidian Protocol Map Tool v54 (Fixed)</title>
     <style>
+        /* 스타일은 기존 v54와 동일 (다크 테마 + 시야 버그 수정 스타일) */
         * { box-sizing: border-box; }
         body {
             font-family: 'Segoe UI', sans-serif;
@@ -72,7 +73,6 @@
             position: relative;
         }
 
-        /* 하단 UI 영역 */
         .bottom-ui {
             background-color: #1e1e1e;
             border-top: 1px solid #333;
@@ -86,7 +86,6 @@
             height: 90px;
         }
 
-        /* 정보 패널 */
         #info-panel {
             flex: 1;
             background: #2d2d2d;
@@ -104,7 +103,6 @@
         #info-panel.edit-mode { border-color: #009688; background-color: #004d40; }
         #info-panel.sim-mode { border-color: #9c27b0; background-color: #4a148c; }
         
-        /* [수정됨] 사거리 모드: 검은 배경 + 주황색 테두리/글씨 */
         #info-panel.range-mode { 
             border-color: #ff9800; 
             background-color: #111; 
@@ -256,6 +254,15 @@
     </div>
 
     <script>
+        // --- 3. 서비스 워커 등록 (설치를 위해 필수!) ---
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./service-worker.js')
+                    .then(() => console.log('Service Worker Registered'))
+                    .catch((err) => console.log('SW Failed', err));
+            });
+        }
+
         const container = document.getElementById('grid-container');
         const infoPanel = document.getElementById('info-panel');
         const rangeText = document.getElementById('range-text');
@@ -388,7 +395,6 @@
                 }
             }
 
-            // 1. [버그 수정] 시작점 검증: 벽 내부라면 해당 점은 시야 계산에서 제외
             const validOrigins = [];
             for (let op of originPoints) {
                 let insideWall = false;
@@ -400,7 +406,7 @@
                 }
                 if (!insideWall) validOrigins.push(op);
             }
-            if (validOrigins.length === 0) return; // 벽 안에 완전히 파묻힘
+            if (validOrigins.length === 0) return;
 
             const gridW = currentGridWidth * 3;
             const gridH = currentGridHeight * 3;
@@ -443,7 +449,7 @@
             const tSubX = Math.floor(x1);
             const tSubY = Math.floor(y1);
             for (let b of blockers) {
-                if(b.x === tSubX && b.y === tSubY) continue; // Ignore target itself
+                if(b.x === tSubX && b.y === tSubY) continue;
                 if(lineIntersectsBox(x0, y0, x1, y1, b.x, b.y, 1, 1)) return true;
             }
             return false;
@@ -466,7 +472,6 @@
             return t0 <= t1;
         }
 
-        // --- Grid & Interaction ---
         function createGrid() {
             container.style.gridTemplateColumns = `repeat(${currentGridWidth}, 40px)`;
             container.style.gridTemplateRows = `repeat(${currentGridHeight}, 40px)`;
@@ -491,14 +496,12 @@
                         tile.appendChild(sub);
                     }
                     
-                    // Click Event (Touch ends here too)
                     tile.addEventListener('click', (e) => {
                         if (isEditorMode) handleEditorClick(e, x, y);
                         else if (isSimMode) handleSimClick(x, y);
                         else handleMeasureClick(x, y);
                     });
                     
-                    // Mouse Hover for PC
                     tile.addEventListener('mouseenter', (e) => {
                         if (isEditorMode && e.buttons === 1) handleEditorClick(e, x, y);
                         else if (!isEditorMode) handleSimHover(x, y);
@@ -512,7 +515,6 @@
             updateLOS();
         }
 
-        // --- Editor Logic ---
         function toggleEditor() {
             isEditorMode = !isEditorMode;
             const panel = document.getElementById('editor-panel');
@@ -590,7 +592,6 @@
              updateLOS();
         }
 
-        // --- Interaction Logic ---
         function toggleSimulator() {
             isSimMode = !isSimMode; isRangeMode = false;
             document.getElementById('btn-range').classList.remove('active');
@@ -673,12 +674,11 @@
             }
             if (tx === sx && ty === sy) lockedAxis = null;
             
-            // Draw L-Path (Simplified for mobile code size)
-            let cx, cy;
-            if (lockedAxis === 'y') { cx = sx; cy = ty; } else { cx = tx; cy = sy; }
-            
             const cells = [];
             let xDir = cx > sx ? 1 : -1; let yDir = cy > sy ? 1 : -1;
+            let cx, cy;
+            if (lockedAxis === 'y') { cx = sx; cy = ty; } else { cx = tx; cy = sy; }
+
             for(let i=1; i<=Math.abs(cx-sx); i++) cells.push({x:sx+i*xDir, y:sy});
             for(let i=1; i<=Math.abs(cy-sy); i++) cells.push({x:cx, y:sy+i*yDir});
             xDir = tx > cx ? 1 : -1; yDir = ty > cy ? 1 : -1;
@@ -695,18 +695,8 @@
             rangeText.style.color = "#4fc3f7";
         }
         
-        // --- Helper for Areas ---
         function toggleArea1() { isArea1Active=!isArea1Active; updateAreaOverlay(); document.getElementById('btn-area1').classList.toggle('active'); }
         function toggleArea2() { isArea2Active=!isArea2Active; updateAreaOverlay(); document.getElementById('btn-area2').classList.toggle('active'); }
-
-        // ✅ [필수] PWA 서비스 워커 등록 코드 복구 (이게 있어야 설치됨)
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./service-worker.js')
-                    .then(() => console.log('Service Worker Registered'))
-                    .catch((err) => console.log('SW Failed', err));
-            });
-        }
 
         createGrid();
         initMapStorage();
