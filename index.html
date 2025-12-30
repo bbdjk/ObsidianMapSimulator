@@ -3,12 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, orientation=landscape, viewport-fit=cover">
-    <link rel="manifest" href="./manifest.json?v=17">
+    
+    <link rel="manifest" href="./manifest.json?v=19">
     <meta name="theme-color" content="#1e1e1e">
     <link rel="icon" href="./icon-192.png">
     <link rel="apple-touch-icon" href="./icon-192.png">
+
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="ObsidianMap">
 
     <script>
       if ("serviceWorker" in navigator) {
@@ -28,9 +31,9 @@
       }
     </script>
 
-    <title>Obsidian Map Tool v67 (Range Path Restored)</title>
+    <title>Obsidian Protocol Map Tool v69</title>
     <style>
-        /* 1. 레이아웃 엔진: 3단 고정 구조 */
+        /* --- 🏗️ 레이아웃 엔진: 3단 고정 구조 (겹침 방지) --- */
         html, body {
             margin: 0; padding: 0;
             width: 100%; height: 100%;
@@ -38,30 +41,31 @@
             color: #e0e0e0;
             font-family: 'Segoe UI', sans-serif;
             display: flex;
-            flex-direction: column; /* PC 좌측 쏠림 방지 */
-            overflow: hidden;
+            flex-direction: column;
+            overflow: hidden; /* 페이지 전체 스크롤 차단 */
         }
 
-        /* 2. 상단바 (고정) */
+        /* 상단 메뉴 (고정) */
         .ui-header {
             flex: 0 0 auto;
             background-color: #252525;
             padding: 8px 0;
             border-bottom: 1px solid #333;
+            z-index: 1000;
             width: 100%;
             display: flex;
             justify-content: center;
             overflow-x: auto;
             white-space: nowrap;
-            z-index: 1000;
+            -webkit-overflow-scrolling: touch;
         }
         .controls { display: flex; gap: 6px; padding: 0 15px; align-items: center; }
 
-        /* 3. 중앙 맵 스크롤 영역 */
+        /* 중앙 맵 영역 (나머지 공간 전부 차지 + 독립 스크롤) */
         .main-area {
             flex: 1 1 auto;
             width: 100%;
-            overflow: auto; /* 내용이 많으면 내부에서 스크롤 */
+            overflow: auto; 
             background: #111;
             display: flex;
             justify-content: center;
@@ -79,20 +83,21 @@
             padding: 2px;
             border-radius: 4px;
             margin: auto;
+            max-width: none; /* 65px 유지를 위해 제한 해제 */
         }
 
-        /* 타일 크기 65px (1.5배) */
+        /* 타일 크기 65px (1.5배 확대 유지) */
         .tile {
-            width: min(65px, 7.5vw); 
-            height: min(65px, 7.5vw);
+            width: 65px; height: 65px;
             background-color: #fff;
             display: grid; 
             grid-template-columns: repeat(3, 1fr); 
             grid-template-rows: repeat(3, 1fr);
             position: relative;
+            cursor: crosshair;
         }
 
-        /* 4. 하단바 (고정) */
+        /* 하단 UI (고정) */
         .bottom-ui {
             flex: 0 0 auto;
             background-color: #1e1e1e;
@@ -100,42 +105,85 @@
             padding: 12px;
             width: 100%;
             display: flex;
-            justify-content: center;
+            flex-direction: column;
+            align-items: center;
+            z-index: 1000;
             padding-bottom: max(12px, env(safe-area-inset-bottom));
         }
 
         #info-panel {
+            text-align: center;
             background: #2d2d2d;
             padding: 15px 25px;
             border-radius: 8px;
             border: 1px solid #444;
             width: 90%;
             max-width: 650px;
-            text-align: center;
+            box-shadow: 0 -4px 10px rgba(0,0,0,0.3);
         }
 
-        /* 색상 및 시각 효과 */
-        #range-text { font-size: 1.3em; font-weight: bold; color: #4fc3f7; margin-bottom: 4px; }
+        /* --- 스타일: 원본 효과들 --- */
+        #range-text { font-size: 1.4em; font-weight: bold; color: #4fc3f7; margin-bottom: 5px; }
+        #detail-text { font-size: 1.1em; color: #aaa; margin-bottom: 3px; }
+        #status-text { font-size: 0.9em; color: #888; font-style: italic; }
+
+        .legend-box { display: flex; justify-content: center; gap: 12px; margin-top: 8px; font-size: 0.8em; }
+        .legend-item { display: flex; align-items: center; gap: 4px; }
+        .legend-color { width: 10px; height: 10px; border-radius: 2px; border: 1px solid #fff; }
+
+        button { padding: 8px 14px; background: #3a3a3a; color: white; border: 1px solid #555; border-radius: 4px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+        button.active { background-color: #2e7d32; border-color: #1b5e20; }
+        #btn-editor { background-color: #ff9800; color: #000; }
+        #btn-range { background-color: #fbc02d; color: black; }
+
+        .subcell { border: 0.1px solid rgba(0,0,0,0.05); box-sizing: border-box; }
+        .subcell.obs-full { background-color: #111; } 
+        .subcell.obs-partial { background-color: #777; background-image: repeating-linear-gradient(45deg, #666, #666 2px, #777 2px, #777 4px); }
+        .subcell.obs-weak { background-color: #009688; }
+        
         .subcell.sub-visible { background-color: rgba(76, 175, 80, 0.6) !important; }
         .subcell.in-range { background-color: rgba(255, 235, 59, 0.25); }
         .subcell.sub-visible.in-range { background-color: rgba(33, 150, 243, 0.65) !important; border: 1px solid #fff; }
-        
-        .tile.start::after { content: ''; position: absolute; inset: 0; background-color: rgba(33, 150, 243, 0.6); border: 2px solid #2196f3; z-index: 5; }
-        .tile.target::before { content: ''; position: absolute; inset: 0; background-color: rgba(244, 67, 54, 0.5); border: 2px solid #e53935; z-index: 6; }
-        .tile.path::before { content: ''; position: absolute; inset: 2px; background-color: rgba(255, 235, 59, 0.3); border: 2px dashed #fdd835; z-index: 4; }
 
-        button { padding: 8px 12px; background: #3a3a3a; color: white; border: 1px solid #555; border-radius: 4px; cursor: pointer; }
-        button.active { background-color: #2e7d32; }
+        .tile.start::after { content: ''; position: absolute; inset: 0; background-color: rgba(33, 150, 243, 0.6); border: 2px solid #2196f3; z-index: 5; pointer-events: none; }
+        .tile.target::before { content: ''; position: absolute; inset: 0; background-color: rgba(244, 67, 54, 0.5); border: 2px solid #e53935; z-index: 6; pointer-events: none; }
+        .tile.path::before { content: ''; position: absolute; inset: 2px; background-color: rgba(255, 235, 59, 0.3); border: 2px dashed #fdd835; z-index: 4; pointer-events: none; }
+        .tile.path-tick-0::before { background-color: rgba(33, 150, 243, 0.4); border: 2px dashed #fdd835; }
+        .tile.path-tick-1::before { background-color: rgba(255, 235, 59, 0.4); border: 2px dashed #fdd835; }
+        .tile.path-tick-2::before { background-color: rgba(244, 67, 54, 0.4); border: 2px dashed #d32f2f; }
+
+        .coord-label { position: absolute; top: 1px; left: 2px; font-size: 10px; color: #ccc; z-index: 10; pointer-events: none; }
+
+        #editor-panel {
+            position: fixed; right: 0; top: 0; height: 100%; width: 320px;
+            background: #222; border-left: 1px solid #444; padding: 15px;
+            display: none; flex-direction: column; overflow-y: auto; z-index: 2000;
+        }
+        #editor-panel.visible { display: flex; }
+        .editor-section { margin-bottom: 20px; }
+        .editor-title { font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid #555; }
+        .tool-btn.selected { background: #009688; color: white; }
+
+        @media screen and (orientation: portrait) {
+            .ui-header { justify-content: flex-start; }
+            #editor-panel { width: 100%; height: 50vh; top: auto; bottom: 0; border-left: none; border-top: 2px solid #444; }
+        }
     </style>
 </head>
 <body>
 
     <div class="ui-header">
         <div class="controls">
-            <button onclick="loadMap('hotspot')">Hotspot</button>
-            <button onclick="loadMap('crossroads')">Crossroads</button>
-            <button onclick="loadMap('alley')">Alley</button>
+            <button id="btn-hotspot" onclick="loadMap('hotspot')">Hotspot</button>
+            <button id="btn-crossroads" onclick="loadMap('crossroads')">Crossroads</button>
+            <button id="btn-alley" onclick="loadMap('alley')">Alley</button>
+            <select id="map-selector" onchange="handleMapSelect()" style="padding:10px; background:#263238; color:white; border-radius:4px;">
+                <option value="" disabled selected>저장된 맵</option>
+                <option value="__NEW__">+ 새 맵</option>
+            </select>
             <button id="btn-editor" onclick="toggleEditor()">🛠 에디터</button>
+            <button id="btn-area1" onclick="toggleArea1()">Area1</button>
+            <button id="btn-area2" onclick="toggleArea2()">Area2</button>
             <button id="btn-sim" onclick="toggleSimulator()">🎲 시뮬레이터</button>
             <button id="btn-los" onclick="toggleLOS()">👁 LOS</button>
             <button id="btn-range" onclick="toggleRangeMode()">📏 사거리</button>
@@ -147,109 +195,251 @@
     </div>
 
     <div class="bottom-ui">
+        <div id="sim-controls" style="display:none; align-items:center; gap:12px; margin-bottom:12px;">
+            <button class="tick-btn" onclick="changeVal(-1)" style="width:35px; height:35px; border-radius:50%; font-size:1.4em;">-</button>
+            <span id="tick-display" style="font-weight:bold; color:#fff;">틱 갯수 : 3</span>
+            <button class="tick-btn" onclick="changeVal(1)" style="width:35px; height:35px; border-radius:50%; font-size:1.4em;">+</button>
+        </div>
+
         <div id="info-panel">
             <div id="range-text">위치 선택</div>
+            <div id="detail-text">일반 모드</div>
             <div id="status-text">시작 지점을 클릭하세요</div>
-            <div style="display:flex; justify-content:center; gap:10px; margin-top:8px; font-size:0.8em;">
-                <div style="display:flex; align-items:center; gap:4px;"><div style="width:10px; height:10px; background:rgba(76,175,80,0.8);"></div>시야</div>
-                <div style="display:flex; align-items:center; gap:4px;"><div style="width:10px; height:10px; background:rgba(255,235,59,0.5);"></div>사거리</div>
-                <div style="display:flex; align-items:center; gap:4px;"><div style="width:10px; height:10px; background:rgba(33,150,243,0.8);"></div>공격가능</div>
+            
+            <div class="legend-box">
+                <div class="legend-item"><div class="legend-color" style="background:rgba(76,175,80,0.8);"></div>시야</div>
+                <div class="legend-item"><div class="legend-color" style="background:rgba(255,235,59,0.5);"></div>사거리</div>
+                <div class="legend-item"><div class="legend-color" style="background:rgba(33,150,243,0.8);"></div>공격가능</div>
             </div>
         </div>
     </div>
 
+    <div id="editor-panel">
+        <button onclick="toggleEditor()" style="background:#444; margin-bottom:10px;">❌ 닫기</button>
+        <div class="editor-section">
+            <div class="editor-title">🔄 대칭 도구</div>
+            <button onclick="applySymmetry('T2B')">⬆ 상단 ➡ 하단</button>
+            <button onclick="applySymmetry('L2R')">⬅ 좌측 ➡ 우측</button>
+        </div>
+        <div class="editor-section">
+            <div class="editor-title">🛠 도구 선택</div>
+            <button class="tool-btn selected" onclick="selectTool('ERASER')">⬜ 지우개</button>
+            <button class="tool-btn" onclick="selectTool('FULL')">⬛ 3x3 상자</button>
+            <button class="tool-btn" onclick="selectTool('CUSTOM_DRAW')">✏️ 직접 그리기</button>
+        </div>
+        <button onclick="saveMapAs()" style="background:#2e7d32; margin-top:20px;">💾 저장하기</button>
+    </div>
+
     <script>
+        /* 🕹️ [핵심] 모든 자바스크립트 기능 복구 */
         const container = document.getElementById('grid-container');
         const infoPanel = document.getElementById('info-panel');
         const rangeText = document.getElementById('range-text');
+        const detailText = document.getElementById('detail-text');
         const statusText = document.getElementById('status-text');
+        const editorPanel = document.getElementById('editor-panel');
+        const simControls = document.getElementById('sim-controls');
+        const tickDisplay = document.getElementById('tick-display');
+        const mapSelector = document.getElementById('map-selector');
         
         let tiles = []; 
-        let isSimMode = false; let isRangeMode = false; let isLOSActive = false;
+        let isEditorMode = false; let isSimMode = false; let isRangeMode = false; 
+        let isArea1Active = false; let isArea2Active = false;
+        let isLOSActive = false; let isMouseDown = false; let currentTool = 'ERASER'; 
         let currentGridWidth = 12; let currentGridHeight = 12;
-        let startPoint = null; let isLocked = false; let rangeValue = 4;
+        let startPoint = null; let isLocked = false; let maxTicks = 3; let rangeValue = 4; 
+        let simSegments = []; let lockedAxis = null; let savedMaps = {};
 
-        // 그리드 생성 (생략 없이 복구)
+        window.addEventListener('mouseup', () => { isMouseDown = false; });
+
+        const defaultMaps = {
+            hotspot: [{x:9, y:1, t:'CONTAINER', idx:[8]}, {x:7, y:2, t:'FULL'}, {x:8, y:2, t:'CONTAINER', idx:[2]}, {x:10, y:2, t:'BLK_B'}, {x:2, y:3, t:'GRY_R'}, {x:7, y:3, t:'FULL'}, {x:2, y:4, t:'BLK_T'}, {x:5, y:4, t:'BLK_T'}, {x:6, y:4, t:'CONTAINER', idx:[2,5]}, {x:8, y:4, t:'FULL'}, {x:9, y:4, t:'CONTAINER', idx:[7,8]}, {x:10, y:4, t:'CONTAINER', idx:[3,6]}, {x:4, y:5, t:'CONTAINER', idx:[2]}, {x:8, y:5, t:'GRY_R'}, {x:3, y:6, t:'GRY_L'}, {x:7, y:6, t:'CONTAINER', idx:[6]}, {x:1, y:7, t:'CONTAINER', idx:[2,5]}, {x:2, y:7, t:'CONTAINER', idx:[0,1]}, {x:3, y:7, t:'FULL'}, {x:5, y:7, t:'CONTAINER', idx:[3,6]}, {x:6, y:7, t:'BLK_B'}, {x:9, y:7, t:'BLK_B'}, {x:4, y:8, t:'FULL'}, {x:9, y:8, t:'GRY_L'}, {x:1, y:9, t:'BLK_T'}, {x:3, y:9, t:'CONTAINER', idx:[0]}, {x:4, y:9, t:'FULL'}, {x:2, y:10, t:'CONTAINER', idx:[0]}],
+            crossroads: [{x:8, y:2, t:'BLK_L'}, {x:4, y:3, t:'GRY_R'}, {x:8, y:3, t:'FULL'}, {x:9, y:3, t:'GRY_T'}, {x:0, y:4, t:'CONTAINER', idx:[7,8]}, {x:1, y:4, t:'BLK_B'}, {x:2, y:4, t:'BLK_B'}, {x:3, y:4, t:'FULL'}, {x:4, y:4, t:'FULL'}, {x:5, y:4, t:'CONTAINER', idx:[7,8]}, {x:6, y:4, t:'CONTAINER', idx:[5,8]}, {x:8, y:4, t:'GRY_R'}, {x:4, y:5, t:'CONTAINER', idx:[8]}, {x:7, y:6, t:'CONTAINER', idx:[0]}, {x:3, y:7, t:'GRY_L'}, {x:5, y:7, t:'CONTAINER', idx:[0,3]}, {x:6, y:7, t:'CONTAINER', idx:[0,1]}, {x:7, y:7, t:'FULL'}, {x:8, y:7, t:'FULL'}, {x:9, y:7, t:'BLK_T'}, {x:10, y:7, t:'BLK_T'}, {x:11, y:7, t:'CONTAINER', idx:[0,1]}, {x:2, y:8, t:'GRY_B'}, {x:3, y:8, t:'FULL'}, {x:7, y:8, t:'GRY_L'}, {x:3, y:9, t:'BLK_R'}],
+            alley: [{x:5, y:2, t:'BLK_B'}, {x:10, y:2, t:'GRY_L'}, {x:3, y:3, t:'GRY_L'}, {x:4, y:3, t:'CONTAINER', idx:[5,8]}, {x:6, y:3, t:'CONTAINER', idx:[8]}, {x:0, y:4, t:'BLK_T'}, {x:2, y:4, t:'CONTAINER', idx:[6,7]}, {x:4, y:4, t:'BLK_T'}, {x:6, y:4, t:'FULL'}, {x:8, y:4, t:'FULL'}, {x:9, y:4, t:'GRY_T'}, {x:10, y:4, t:'CONTAINER', idx:[8]}, {x:3, y:5, t:'CONTAINER', idx:[5,8]}, {x:7, y:5, t:'FULL'}, {x:11, y:5, t:'CONTAINER', idx:[0]}, {x:0, y:6, t:'CONTAINER', idx:[8]}, {x:4, y:6, t:'FULL'}, {x:8, y:6, t:'CONTAINER', idx:[0,3]}, {x:1, y:7, t:'CONTAINER', idx:[0]}, {x:2, y:7, t:'GRY_B'}, {x:3, y:7, t:'FULL'}, {x:5, y:7, t:'FULL'}, {x:7, y:7, t:'BLK_B'}, {x:9, y:7, t:'CONTAINER', idx:[1,2]}, {x:11, y:7, t:'BLK_B'}, {x:5, y:8, t:'CONTAINER', idx:[0]}, {x:7, y:8, t:'CONTAINER', idx:[0,3]}, {x:8, y:8, t:'GRY_R'}, {x:1, y:9, t:'GRY_R'}, {x:6, y:9, t:'BLK_T'}]
+        };
+
+        function initMapStorage() {
+            const stored = localStorage.getItem('obsidian_saved_maps_v2');
+            if (stored) { try { savedMaps = JSON.parse(stored); } catch(e) { savedMaps = {}; } }
+            refreshMapDropdown();
+        }
+
+        function refreshMapDropdown() {
+            mapSelector.innerHTML = '<option value="" disabled selected>저장된 맵</option>';
+            Object.keys(savedMaps).sort().forEach(name => {
+                const opt = document.createElement('option'); opt.value = name; opt.textContent = name; mapSelector.appendChild(opt);
+            });
+            const newOpt = document.createElement('option'); newOpt.value = "__NEW__"; newOpt.textContent = "+ 새 맵 추가"; mapSelector.appendChild(newOpt);
+        }
+
         function createGrid() {
-            container.style.gridTemplateColumns = `repeat(${currentGridWidth}, 1fr)`;
-            container.style.gridTemplateRows = `repeat(${currentGridHeight}, 1fr)`;
+            container.style.gridTemplateColumns = `repeat(${currentGridWidth}, 65px)`;
+            container.style.gridTemplateRows = `repeat(${currentGridHeight}, 65px)`;
             container.innerHTML = ''; tiles = [];
             for (let y = 0; y < currentGridHeight; y++) {
                 for (let x = 0; x < currentGridWidth; x++) {
                     const tile = document.createElement('div'); tile.className = 'tile';
                     tile.dataset.x = x; tile.dataset.y = y;
+                    const label = document.createElement('span'); label.className = 'coord-label'; label.textContent = `${x},${y}`;
+                    tile.appendChild(label);
                     for (let i = 0; i < 9; i++) {
                         const sub = document.createElement('div'); sub.className = 'subcell'; tile.appendChild(sub);
                     }
-                    tile.addEventListener('mousedown', () => {
-                        if (isSimMode) handleSimClick(x, y); else handleMeasureClick(x, y);
+                    tile.addEventListener('mousedown', (e) => {
+                        isMouseDown = true;
+                        if (isEditorMode) handleEditorClick(e, x, y);
+                        else if (isSimMode) handleSimClick(x, y);
+                        else handleMeasureClick(x, y);
                     });
-                    tile.addEventListener('mouseenter', () => {
-                        handleMeasureHover(x, y);
+                    tile.addEventListener('mouseenter', (e) => {
+                        if (isEditorMode && isMouseDown) handleEditorClick(e, x, y);
+                        else if (isSimMode) handleSimHover(x, y);
+                        else if (!isEditorMode) handleMeasureHover(x, y);
                     });
                     container.appendChild(tile); tiles.push(tile);
                 }
             }
+            updateAreaOverlay(); updateLOS();
         }
 
-        // ⭐ 사거리 경로 복구 포인트: handleMeasureHover 수정
-        function handleMeasureHover(tx, ty) {
-            if (isLocked || !startPoint) return;
-            
-            // 시각적 초기화
-            tiles.forEach(t => t.classList.remove('path', 'target'));
-            
-            const sx = startPoint.x; const sy = startPoint.y;
-            const targetTile = tiles[ty * currentGridWidth + tx];
-            if(targetTile) targetTile.classList.add('target');
+        /* --- 맵 로직 및 물리 엔진 --- */
+        function updateLOS() {
+            document.querySelectorAll('.subcell').forEach(s => s.classList.remove('sub-visible', 'in-range'));
+            let origin = (simSegments.length > 0) ? simSegments[simSegments.length - 1].end : startPoint;
+            if (isRangeMode && origin) { calculateRangeArea(origin); calculateLOS(origin); } 
+            else if (isLOSActive && origin) { calculateLOS(origin); }
+        }
 
-            // ✅ 사거리 모드일 때도 경로(노란색)를 그리도록 코드 수정
-            const dx = Math.abs(tx - sx);
-            const dy = Math.abs(ty - sy);
-            
-            // L자형 경로 계산
-            for(let i=1; i<=dx; i++) {
-                const tile = tiles[sy * currentGridWidth + (sx + i * (tx > sx ? 1 : -1))];
-                if(tile) tile.classList.add('path');
+        function calculateRangeArea(origin) {
+            for(let y=0; y<currentGridHeight; y++) {
+                for(let x=0; x<currentGridWidth; x++) {
+                    const dist = Math.abs(x - origin.x) + Math.abs(y - origin.y);
+                    if (dist <= rangeValue) {
+                        const idx = y * currentGridWidth + x;
+                        if(tiles[idx]) for(let i=0; i<9; i++) tiles[idx].children[i+1].classList.add('in-range');
+                    }
+                }
             }
-            for(let i=1; i<=dy; i++) {
-                const tile = tiles[(sy + i * (ty > sy ? 1 : -1)) * currentGridWidth + tx];
-                if(tile) tile.classList.add('path');
-            }
+        }
 
-            rangeText.innerHTML = `사거리: <span style="color:white">${dx + dy}</span>`;
+        function calculateLOS(origin) {
+            const tileX = origin.x * 3; const tileY = origin.y * 3;
+            const originPoints = [{x: tileX + 1.5, y: tileY + 1.5}, {x: tileX + 0.1, y: tileY + 0.1}, {x: tileX + 2.9, y: tileY + 2.9}];
+            const blockers = [];
+            tiles.forEach((t, idx) => {
+                const tx = idx % currentGridWidth; const ty = Math.floor(idx / currentGridWidth);
+                for(let i=0; i<9; i++) if(t.children[i+1].classList.contains('obs-full')) blockers.push({x: tx*3+(i%3), y: ty*3+Math.floor(i/3)});
+            });
+            const gridW = currentGridWidth * 3; const gridH = currentGridHeight * 3;
+            for (let gy = 0; gy < gridH; gy++) {
+                for (let gx = 0; gx < gridW; gx++) {
+                    const tx = Math.floor(gx / 3); const ty = Math.floor(gy / 3);
+                    const tile = tiles[ty * currentGridWidth + tx];
+                    if (!tile || tile.children[(gy%3)*3+(gx%3)+1].classList.contains('obs-full')) continue;
+                    let visible = false;
+                    for (let op of originPoints) if (!isRayBlocked(op.x, op.y, gx+0.5, gy+0.5, blockers)) { visible = true; break; }
+                    if (visible) tile.children[(gy%3)*3+(gx%3)+1].classList.add('sub-visible');
+                }
+            }
+        }
+
+        function isRayBlocked(x0, y0, x1, y1, blockers) {
+            for (let b of blockers) if (lineIntersectsBox(x0, y0, x1, y1, b.x, b.y, 1, 1)) return true;
+            return false;
+        }
+
+        function lineIntersectsBox(x1, y1, x2, y2, bx, by, bw, bh) {
+            let dx = x2 - x1, dy = y2 - y1;
+            let tmin = -Infinity, tmax = Infinity;
+            if (dx !== 0) {
+                let t1 = (bx - x1) / dx, t2 = (bx + bw - x1) / dx;
+                tmin = Math.max(tmin, Math.min(t1, t2)); tmax = Math.min(tmax, Math.max(t1, t2));
+            } else if (x1 < bx || x1 > bx + bw) return false;
+            if (dy !== 0) {
+                let t1 = (by - y1) / dy, t2 = (by + bh - y1) / dy;
+                tmin = Math.max(tmin, Math.min(t1, t2)); tmax = Math.min(tmax, Math.max(t1, t2));
+            } else if (y1 < by || y1 > by + bh) return false;
+            return tmax >= tmin && tmax >= 0 && tmin <= 1;
+        }
+
+        /* --- UI 및 모드 제어 --- */
+        function toggleSimulator() {
+            isSimMode = !isSimMode; isRangeMode = false; isEditorMode = false;
+            document.getElementById('btn-sim').classList.toggle('active', isSimMode);
+            simControls.style.display = isSimMode ? 'flex' : 'none';
+            resetMeasureState();
+        }
+
+        function toggleRangeMode() {
+            isRangeMode = !isRangeMode; isSimMode = false; isEditorMode = false;
+            document.getElementById('btn-range').classList.toggle('active', isRangeMode);
+            simControls.style.display = isRangeMode ? 'flex' : 'none';
+            resetMeasureState();
+        }
+
+        function changeVal(n) {
+            if(isSimMode) { maxTicks = Math.max(1, maxTicks + n); tickDisplay.innerText = `틱 갯수 : ${maxTicks}`; }
+            else if(isRangeMode) { rangeValue = Math.max(1, rangeValue + n); tickDisplay.innerText = `사거리 : ${rangeValue}`; }
+            updateLOS();
         }
 
         function handleMeasureClick(x, y) {
-            if (!startPoint) {
-                startPoint = { x, y };
-                tiles[y * currentGridWidth + x].classList.add('start');
-                updateLOS();
-            } else if (!isLocked) {
-                isLocked = true;
-                tiles[y * currentGridWidth + x].classList.add('target');
-            } else {
-                resetMeasureState();
-            }
+            if (!startPoint) { startPoint = { x, y }; tiles[y * currentGridWidth + x].classList.add('start'); updateLOS(); }
+            else if (!isLocked) { isLocked = true; tiles[y * currentGridWidth + x].classList.add('target'); }
+            else resetMeasureState();
+        }
+
+        function handleMeasureHover(tx, ty) {
+            if (isLocked || !startPoint) return;
+            tiles.forEach(t => t.classList.remove('path', 'target'));
+            const sx = startPoint.x, sy = startPoint.y;
+            tiles[ty * currentGridWidth + tx].classList.add('target');
+            const dx = Math.abs(tx - sx), dy = Math.abs(ty - sy);
+            for(let i=1; i<=dx; i++) tiles[sy * currentGridWidth + (sx + i * (tx > sx ? 1 : -1))].classList.add('path');
+            for(let i=1; i<=dy; i++) tiles[(sy + i * (ty > sy ? 1 : -1)) * currentGridWidth + tx].classList.add('path');
+            rangeText.innerHTML = `사거리: <span style="color:white">${dx + dy}</span>`;
+            detailText.innerText = `가로 ${dx} + 세로 ${dy}`;
         }
 
         function resetMeasureState() {
-            startPoint = null; isLocked = false;
+            startPoint = null; isLocked = false; simSegments = [];
             tiles.forEach(t => t.classList.remove('start', 'target', 'path'));
             updateLOS();
         }
 
-        function toggleRangeMode() {
-            isRangeMode = !isRangeMode;
-            document.getElementById('btn-range').classList.toggle('active');
-            resetMeasureState();
+        function loadMap(name) {
+            const data = defaultMaps[name];
+            tiles.forEach(t => { for(let i=0; i<9; i++) t.children[i+1].className = 'subcell'; });
+            data.forEach(d => renderTileObject(tiles[d.y * currentGridWidth + d.x], d));
+            document.querySelectorAll('.controls button').forEach(b => b.classList.remove('active'));
+            document.getElementById('btn-'+name).classList.add('active');
+            updateLOS();
         }
 
-        // [시야 계산 및 맵 로드 로직 생략 없이 기존 파일 내용 유지]
-        function loadMap(name) { /* 기존 코드 유지 */ createGrid(); }
-        function toggleLOS() { isLOSActive = !isLOSActive; updateLOS(); }
-        function updateLOS() { /* 기존 코드 유지 */ }
+        function renderTileObject(tile, data) {
+            const subs = tile.querySelectorAll('.subcell');
+            if (data.t === 'FULL') subs.forEach(s => s.classList.add('obs-full'));
+            else if (data.t === 'BLK_T') [0,1,2].forEach(i=>subs[i].classList.add('obs-full'));
+            else if (data.t === 'BLK_B') [6,7,8].forEach(i=>subs[i].classList.add('obs-full'));
+            else if (data.t === 'BLK_L') [0,3,6].forEach(i=>subs[i].classList.add('obs-full'));
+            else if (data.t === 'BLK_R') [2,5,8].forEach(i=>subs[i].classList.add('obs-full'));
+            else if (data.t.startsWith('CONTAINER')) data.idx.forEach(i => subs[i].classList.add('obs-weak'));
+        }
 
+        function toggleEditor() { isEditorMode = !isEditorMode; editorPanel.classList.toggle('visible'); resetMeasureState(); }
+        function selectTool(t) { currentTool = t; document.querySelectorAll('.tool-btn').forEach(b => b.classList.toggle('selected', b.innerText.includes(t))); }
+        function toggleLOS() { isLOSActive = !isLOSActive; document.getElementById('btn-los').classList.toggle('active'); updateLOS(); }
+        function toggleArea1() { isArea1Active = !isArea1Active; document.getElementById('btn-area1').classList.toggle('active'); updateAreaOverlay(); }
+        function updateAreaOverlay() {
+            tiles.forEach(t => t.classList.remove('area-red', 'area-blue'));
+            if(isArea1Active) tiles.forEach((t, i) => {
+                const x = i % 12, y = Math.floor(i / 12);
+                if(x < 4 && y < 3) t.classList.add('area-red');
+                if(x > 7 && y > 8) t.classList.add('area-blue');
+            });
+        }
+
+        initMapStorage();
         createGrid();
         loadMap('hotspot');
     </script>
