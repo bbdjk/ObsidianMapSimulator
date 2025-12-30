@@ -2,9 +2,8 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, orientation=landscape, viewport-fit=cover">
-    
-    <link rel="manifest" href="./manifest.json?v=8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<link rel="manifest" href="./manifest.json?v=8">
     <meta name="theme-color" content="#1e1e1e">
     <link rel="icon" href="./icon-192.png">
     <link rel="apple-touch-icon" href="./icon-192.png">
@@ -12,8 +11,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="ObsidianMap">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script>
+<script>
       if ("serviceWorker" in navigator) {
         // 경로 문제 방지를 위해 ./ 사용 (GitHub Pages 호환)
         navigator.serviceWorker.register("./service-worker.js").then(reg => {
@@ -41,7 +39,13 @@
     <title>Obsidian Protocol Map Tool v61 (Final Complete)</title>
     <style>
         
-        /* --- 스타일: 사용자 원본 + 1.5배 크기 + 모바일 대응 --- */
+        
+        :root{
+            --tile-size: 65px;
+            --app-pad: 20px;
+            --vh: 1vh;
+        }
+/* --- 스타일: 사용자 원본 + 1.5배 크기 + 모바일 대응 --- */
         body {
             font-family: 'Segoe UI', sans-serif;
             background-color: #1e1e1e;
@@ -50,11 +54,12 @@
             flex-direction: row;
             justify-content: center;
             margin: 0;
-            padding: 20px;
+            padding: var(--app-pad);
             user-select: none;
-            height: 100vh;
+            height: calc(var(--vh) * 100);
             overflow: hidden;
             /* 아이폰 하단 바 영역 침범 방지 */
+            padding-top: env(safe-area-inset-top);
             padding-bottom: env(safe-area-inset-bottom);
             padding-left: env(safe-area-inset-left);
             padding-right: env(safe-area-inset-right);
@@ -66,7 +71,8 @@
             align-items: center;
             margin-right: 20px;
             flex: 1;
-            overflow: auto;
+            overflow: hidden;
+            min-height: 0;
             padding-bottom: 50px;
             position: relative;
         }
@@ -197,11 +203,26 @@
             background-color: #444; border: 4px solid #333;
             padding: 2px; border-radius: 4px;
             touch-action: none;
+            overscroll-behavior: contain;
         }
+
+        #grid-wrap{
+            width: 100%;
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: auto;
+            -webkit-overflow-scrolling: touch;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+        }
+        /* grid 자체는 내용 크기만큼 유지 */
+        #grid-container{ flex: 0 0 auto; }
+
 
         /* ✅ 타일 크기 65px (1.5배 확대) */
         .tile {
-            width: 65px; height: 65px; background-color: #fff;
+            width: var(--tile-size); height: var(--tile-size); background-color: #fff;
             display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr);
             position: relative; cursor: crosshair;
         }
@@ -292,6 +313,10 @@
             display: flex; align-items: center; gap: 5px; background: #333; padding: 10px; border-radius: 4px;
         }
         .size-input { width: 45px; padding: 5px; background: #222; color: white; border: 1px solid #555; font-weight: bold; text-align: center;}
+        @supports (height: 100dvh) {
+            body { height: 100dvh; }
+        }
+
 
         /* --- 📱 모바일 세로 모드 대응 --- */
         @media screen and (orientation: portrait) {
@@ -311,6 +336,29 @@
                 border-left: none; border-top: 2px solid #444;
             }
         }
+    
+        /* ✅ 모바일/작은 화면(가로 포함) 대응: 잘림 방지 + 타일 축소 + 에디터 패널 하단 오버레이 */
+        @media (max-width: 900px) {
+            :root { --tile-size: 46px; --app-pad: 10px; }
+            body { flex-direction: column; overflow: hidden; }
+            .main-area { width: 100%; margin-right: 0; }
+            .ui-header { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+            #editor-panel{
+                position: fixed;
+                left: 0; right: 0; bottom: 0;
+                width: 100%;
+                min-width: 0;
+                height: 45dvh;
+                border-left: none;
+                border-top: 2px solid #444;
+                z-index: 200;
+                background: #222;
+            }
+        }
+        @media (max-height: 520px) {
+            :root { --tile-size: 40px; }
+        }
+
     </style>
 </head>
 <body>
@@ -340,7 +388,7 @@
             </div>
         </div>
 
-        <div id="grid-container"></div>
+        <div id="grid-wrap"><div id="grid-container"></div></div>
 
         <div class="bottom-ui">
             <div id="sim-controls">
@@ -451,7 +499,16 @@
         const mapSelector = document.getElementById('map-selector');
         const currentMapNameDisplay = document.getElementById('current-map-name');
         
-        const widthInput = document.getElementById('grid-width-input');
+        
+
+        // --- 모바일 주소창/하단바로 인한 100vh 문제 대응 ---
+        function setViewportHeightVar(){
+            document.documentElement.style.setProperty('--vh', `${window.innerHeight * 0.01}px`);
+        }
+        setViewportHeightVar();
+        window.addEventListener('resize', setViewportHeightVar);
+        window.addEventListener('orientationchange', setViewportHeightVar);
+const widthInput = document.getElementById('grid-width-input');
         const heightInput = document.getElementById('grid-height-input');
         
         let tiles = []; 
@@ -477,7 +534,79 @@
 
         let currentEditingMapName = null;
 
-        window.addEventListener('mouseup', () => { isMouseDown = false; });
+
+        // --- 포인터(터치/펜/마우스) 입력: 모바일 드래그 지원 ---
+        let isPointerDown = false;
+        let activePointerId = null;
+        let pointerInitialized = false;
+
+        function getTilePosFromPointer(e){
+            const el = document.elementFromPoint(e.clientX, e.clientY);
+            if(!el) return null;
+            const tile = el.closest('.tile');
+            if(!tile) return null;
+            return { x: parseInt(tile.dataset.x, 10), y: parseInt(tile.dataset.y, 10), el };
+        }
+
+        function processPointer(e, phase){
+            const pos = getTilePosFromPointer(e);
+            if(!pos) return;
+            const {x, y, el} = pos;
+
+            if(phase === 'down'){
+                if (isEditorMode) handleEditorClick(e, x, y, el);
+                else if (isSimMode) handleSimClick(x, y);
+                else handleMeasureClick(x, y);
+                return;
+            }
+
+            // move(hover 포함)
+            if (isEditorMode) {
+                if (isPointerDown) handleEditorClick(e, x, y, el);
+            } else if (isSimMode) {
+                handleSimHover(x, y);
+            } else if (!isEditorMode) {
+                handleMeasureHover(x, y);
+            }
+        }
+
+        function initPointerInput(){
+            if(pointerInitialized) return;
+            pointerInitialized = true;
+
+            const opts = { passive: false };
+
+            container.addEventListener('pointerdown', (e) => {
+                // 좌클릭/터치만 처리
+                if (e.pointerType === 'mouse' && e.button !== 0) return;
+
+                isPointerDown = true;
+                activePointerId = e.pointerId;
+                try { container.setPointerCapture(activePointerId); } catch(_) {}
+                e.preventDefault();
+                processPointer(e, 'down');
+            }, opts);
+
+            container.addEventListener('pointermove', (e) => {
+                if (activePointerId !== null && e.pointerId !== activePointerId) return;
+                if (isPointerDown || isSimMode) e.preventDefault();
+                processPointer(e, 'move');
+            }, opts);
+
+            const end = (e) => {
+                if (activePointerId !== null && e.pointerId !== activePointerId) return;
+                isPointerDown = false;
+                try { container.releasePointerCapture(e.pointerId); } catch(_) {}
+                activePointerId = null;
+            };
+
+            container.addEventListener('pointerup', end, opts);
+            container.addEventListener('pointercancel', end, opts);
+            container.addEventListener('lostpointercapture', () => {
+                isPointerDown = false;
+                activePointerId = null;
+            }, opts);
+        }
 
         // --- 맵 데이터 ---
         const defaultMaps = {
@@ -981,9 +1110,11 @@
 
         // --- 그리드 생성 및 변경 ---
         function createGrid() {
-            // ✅ [타일 크기 65px로 확대 유지]
-            container.style.gridTemplateColumns = `repeat(${currentGridWidth}, 65px)`;
-            container.style.gridTemplateRows = `repeat(${currentGridHeight}, 65px)`;
+            
+            initPointerInput();
+// ✅ [타일 크기 65px로 확대 유지]
+            container.style.gridTemplateColumns = `repeat(${currentGridWidth}, var(--tile-size))`;
+            container.style.gridTemplateRows = `repeat(${currentGridHeight}, var(--tile-size))`;
             container.innerHTML = '';
             tiles = [];
 
@@ -1004,21 +1135,7 @@
                         sub.dataset.idx = i; 
                         tile.appendChild(sub);
                     }
-                    
-                    tile.addEventListener('mousedown', (e) => {
-                        isMouseDown = true; 
-                        if (isEditorMode) handleEditorClick(e, x, y);
-                        else if (isSimMode) handleSimClick(x, y);
-                        else handleMeasureClick(x, y);
-                    });
-                    
-                    tile.addEventListener('mouseenter', (e) => {
-                        if (isEditorMode && isMouseDown) handleEditorClick(e, x, y);
-                        else if (isSimMode) handleSimHover(x, y);
-                        else if (!isEditorMode) handleMeasureHover(x, y);
-                    });
-
-                    container.appendChild(tile);
+container.appendChild(tile);
                     tiles.push(tile);
                 }
             }
@@ -1044,10 +1161,11 @@
             });
         }
 
-        function handleEditorClick(e, x, y) {
+        function handleEditorClick(e, x, y, targetOverride) {
             const index = y * currentGridWidth + x;
             const tile = tiles[index];
-            const target = e.target;
+            const target = targetOverride || (e ? e.target : null);
+            if (!target) return;
             if (currentTool === 'CUSTOM_DRAW') {
                 if (target.classList.contains('subcell')) {
                     target.classList.add('obs-weak'); 
