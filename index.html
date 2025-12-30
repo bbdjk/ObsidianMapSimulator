@@ -2,149 +2,199 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, orientation=landscape">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     
     <link rel="manifest" href="./manifest.json">
-    <meta name="theme-color" content="#000000">
+    <meta name="theme-color" content="#1e1e1e">
     <link rel="icon" href="./icon-192.png">
     <link rel="apple-touch-icon" href="./icon-192.png">
 
     <script>
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("/ObsidianMapSimulator/service-worker.js");
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("./service-worker.js");
+        navigator.serviceWorker.addEventListener("controllerchange", () => {
+          window.location.reload();
+        });
+      }
+    </script>
 
-    navigator.serviceWorker.addEventListener("controllerchange", () => {
-      window.location.reload();
-    });
-  }
-</script>
-
-
-    <title>Obsidian Protocol Map Tool v54 (Final Fixed)</title>
+    <title>Obsidian Map Tool v55 (Mobile & Visual Update)</title>
     <style>
         * { box-sizing: border-box; }
         body {
-            font-family: 'Segoe UI', sans-serif;
+            font-family: 'Segoe UI', 'Apple SD Gothic Neo', sans-serif;
             background-color: #1e1e1e;
             color: #e0e0e0;
             margin: 0; padding: 0;
             width: 100vw; height: 100vh;
             overflow: hidden;
             display: flex;
-            flex-direction: row;
+            flex-direction: row; /* 기본은 가로 배치 (PC) */
         }
 
+        /* --- 레이아웃 공통 --- */
         .main-area {
-            flex: 1; display: flex; flex-direction: column; height: 100%; position: relative;
+            flex: 1; display: flex; flex-direction: column; 
+            height: 100%; position: relative; overflow: hidden;
         }
 
         .ui-header {
-            background-color: #252525; padding: 8px; border-bottom: 1px solid #333;
-            display: flex; justify-content: center; flex-shrink: 0; z-index: 10;
+            background-color: #252525; padding: 10px; border-bottom: 1px solid #333;
+            display: flex; justify-content: center; align-items: center;
+            flex-shrink: 0; z-index: 20; box-shadow: 0 2px 5px rgba(0,0,0,0.3);
         }
 
         .controls { 
-            display: flex; gap: 6px; flex-wrap: nowrap; overflow-x: auto; 
+            display: flex; gap: 8px; flex-wrap: nowrap; overflow-x: auto; 
             align-items: center; padding-bottom: 2px; -webkit-overflow-scrolling: touch;
+            width: 100%; max-width: 100%;
         }
         .controls::-webkit-scrollbar { display: none; }
 
         #grid-wrapper {
-            flex: 1; overflow: auto; position: relative; background: #111;
+            flex: 1; overflow: auto; position: relative; background: #121212;
             display: flex; justify-content: center; align-items: center;
+            /* 그리드 배경 패턴 추가 */
+            background-image: radial-gradient(#333 1px, transparent 1px);
+            background-size: 20px 20px;
         }
         
         #grid-container {
-            display: grid; gap: 1px; background-color: #444; border: 2px solid #555;
-            padding: 1px; touch-action: none; transform-origin: center top;
+            display: grid; gap: 2px; /* 간격 살짝 넓힘 */
+            background-color: #333; border: 4px solid #444;
+            padding: 4px; border-radius: 4px;
+            touch-action: none; transform-origin: center top;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
         }
 
         .tile {
-            width: 40px; height: 40px; background-color: #fff;
+            width: 42px; height: 42px; background-color: #eee;
             display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr);
-            position: relative;
+            position: relative; border-radius: 2px;
         }
 
         .bottom-ui {
             background-color: #1e1e1e; border-top: 1px solid #333; padding: 10px;
             display: flex; flex-direction: row; align-items: center; justify-content: space-between;
-            gap: 10px; flex-shrink: 0; height: 90px;
+            gap: 10px; flex-shrink: 0; height: auto; min-height: 90px; z-index: 20;
         }
 
+        /* --- 정보 패널 디자인 개선 --- */
         #info-panel {
-            flex: 1; background: #2d2d2d; padding: 5px 15px; border-radius: 8px; border: 2px solid #444;
-            height: 100%; display: flex; flex-direction: column; justify-content: center;
-            font-size: 0.9em; position: relative; transition: all 0.3s;
+            flex: 1; background: #262626; padding: 8px 15px; border-radius: 8px; 
+            border: 1px solid #444; height: 100%; display: flex; flex-direction: column; 
+            justify-content: center; font-size: 0.9em; position: relative; transition: all 0.3s;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.2);
         }
-        #info-panel.edit-mode { border-color: #009688; background-color: #004d40; }
-        #info-panel.sim-mode { border-color: #9c27b0; background-color: #4a148c; }
-        #info-panel.range-mode { 
-            border-color: #ff9800; background-color: #111; box-shadow: inset 0 0 20px rgba(255, 152, 0, 0.1);
-        }
-        #info-panel.range-mode #range-text { color: #ffb74d; }
-        #info-panel.range-mode #detail-text { color: #ffe0b2; }
+        #info-panel.edit-mode { border: 1px solid #009688; background: linear-gradient(135deg, #262626, #004d40); }
+        #info-panel.sim-mode { border: 1px solid #9c27b0; background: linear-gradient(135deg, #262626, #4a148c); }
+        #info-panel.range-mode { border: 1px solid #ff9800; background: linear-gradient(135deg, #262626, #331a00); }
 
-        #range-text { font-size: 1.2em; font-weight: bold; color: #4fc3f7; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        #status-text { font-size: 0.8em; color: #888; }
+        #range-text { font-size: 1.3em; font-weight: 800; color: #4fc3f7; margin-bottom: 2px; text-shadow: 0 0 5px rgba(79, 195, 247, 0.3); }
+        #status-text { font-size: 0.85em; color: #aaa; margin-top: 2px;}
 
-        .legend-box {
-            position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
-            display: flex; gap: 8px; font-size: 0.7em; color: #ccc;
-        }
-        .legend-item { display: flex; align-items: center; gap: 3px; }
-        .legend-color { width: 10px; height: 10px; border-radius: 2px; }
+        .legend-box { display: flex; gap: 10px; justify-content: center; margin-top: 5px; font-size: 0.75em; color: #ccc; }
+        .legend-item { display: flex; align-items: center; gap: 4px; }
+        .legend-color { width: 10px; height: 10px; border-radius: 2px; box-shadow: 0 0 2px rgba(0,0,0,0.5); }
 
+        /* --- 컨트롤 버튼 --- */
         #sim-controls {
-            display: none; align-items: center; gap: 8px; background: #333; padding: 5px 10px;
-            border-radius: 20px; border: 1px solid #555; height: 100%;
+            display: none; align-items: center; gap: 8px; background: #333; padding: 5px 12px;
+            border-radius: 30px; border: 1px solid #555; height: 100%; box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         }
         #sim-controls.visible { display: flex; }
 
         button {
-            padding: 8px 12px; background: #3a3a3a; color: white;
-            border: 1px solid #555; border-radius: 4px; font-weight: 600; white-space: nowrap; font-size: 0.85em;
+            padding: 8px 14px; background: #3a3a3a; color: white;
+            border: 1px solid #555; border-radius: 6px; font-weight: 600; font-size: 0.85em;
+            white-space: nowrap; transition: 0.2s;
         }
-        button.active { background-color: #2e7d32; border-color: #1b5e20; }
-        .tick-btn { width: 40px; height: 40px; border-radius: 50%; font-size: 1.5em; padding:0; display:flex; align-items:center; justify-content:center;}
+        button:active { transform: scale(0.95); }
+        button.active { background-color: #2e7d32; border-color: #4caf50; box-shadow: 0 0 8px rgba(76, 175, 80, 0.4); }
+        .tick-btn { width: 40px; height: 40px; border-radius: 50%; font-size: 1.5em; padding:0; display:flex; align-items:center; justify-content:center; background:#444;}
         
         #btn-range { background-color: #ff9800; color: black; border-color: #f57c00; }
-        #btn-range.active { background-color: #e65100; color: white; box-shadow: 0 0 10px #ff9800; }
+        #btn-range.active { background-color: #e65100; color: white; }
 
+        /* --- 에디터 패널 --- */
         #editor-panel {
             position: absolute; top: 0; right: 0; bottom: 0; width: 280px; background: #222;
             border-left: 1px solid #444; padding: 15px; display: flex; flex-direction: column; overflow-y: auto;
-            transform: translateX(100%); transition: transform 0.3s; z-index: 100; box-shadow: -5px 0 15px rgba(0,0,0,0.5);
+            transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+            z-index: 100; box-shadow: -5px 0 15px rgba(0,0,0,0.5);
         }
         #editor-panel.visible { transform: translateX(0); }
 
-        .editor-section { margin-bottom: 20px; }
-        .editor-title { font-weight: bold; margin-bottom: 8px; color: #fff; border-bottom: 1px solid #555; padding-bottom: 5px; font-size: 0.9em; }
-        .preset-group { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
-        .preset-group button { width: 100%; font-size: 0.8em; padding: 10px; }
-        .tool-btn { width: 100%; text-align: left; margin-bottom: 5px; padding: 12px; background: #333; border: 1px solid #444; color: #ccc;}
-        .tool-btn.selected { background: #009688; color: white; }
+        /* --- 타일 비주얼 업그레이드 (가시성 개선) --- */
+        /* 1. 시작점 (Start): 선명한 청록색 테두리 + 내부 광원 */
+        .tile.start::after { 
+            content: ''; position: absolute; inset: -2px; 
+            border: 3px solid #00e5ff; border-radius: 4px;
+            background-color: rgba(0, 229, 255, 0.2);
+            box-shadow: 0 0 10px #00e5ff, inset 0 0 10px #00e5ff;
+            z-index: 10; pointer-events: none; animation: pulse-cyan 2s infinite;
+        }
 
-        .subcell.sub-visible { background-color: rgba(76, 175, 80, 0.6) !important; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.15); }
-        .subcell.in-range { background-color: rgba(255, 235, 59, 0.25); box-shadow: inset 0 0 0 1px rgba(255, 235, 59, 0.5); }
-        .subcell.sub-visible.in-range { background-color: rgba(0, 191, 255, 0.65) !important; box-shadow: inset 0 0 0 1px #fff; }
-        .subcell.obs-full { background-color: #111; } 
-        .subcell.obs-partial { background-color: #777; background-image: repeating-linear-gradient(45deg, #666, #666 2px, #777 2px, #777 4px); }
-        .subcell.obs-weak { background-color: #009688; }
-        .tile.start::after { content: ''; position: absolute; inset: 0; background-color: rgba(33, 150, 243, 0.6); border: 2px solid #2196f3; z-index: 5; pointer-events: none;}
-        .tile.target::before { content: ''; position: absolute; inset: 0; background-color: rgba(244, 67, 54, 0.5); border: 2px solid #e53935; z-index: 6; pointer-events: none;}
-        .tile.path::before { content: ''; position: absolute; inset: 2px; background-color: rgba(255, 235, 59, 0.3); border: 2px dashed #fdd835; z-index: 4; border-radius: 4px; pointer-events: none;}
+        /* 2. 목표점 (Target): 강렬한 붉은색/주황색 + 깜빡임 */
+        .tile.target::before { 
+            content: ''; position: absolute; inset: -2px; 
+            border: 3px solid #ff3d00; border-radius: 4px;
+            background-color: rgba(255, 61, 0, 0.2);
+            box-shadow: 0 0 10px #ff3d00, inset 0 0 10px #ff3d00;
+            z-index: 11; pointer-events: none; animation: pulse-red 1s infinite alternate;
+        }
 
-        .l-green { background-color: rgba(76, 175, 80, 0.8); }
-        .l-yellow { background-color: rgba(255, 235, 59, 0.5); border: 1px dashed #fff; }
-        .l-blue { background-color: rgba(0, 191, 255, 0.8); }
-        
-        @media screen and (orientation: portrait) {
-            body::after {
-                content: "가로 모드로 회전해주세요 🔄";
-                position: fixed; top:0; left:0; right:0; bottom:0;
-                background: rgba(0,0,0,0.9); z-index: 9999;
-                display: flex; justify-content: center; align-items: center; color: white; font-size: 1.5em;
+        /* 3. 이동 경로 (Path): 노란색 채움 + 실선 (점선X) */
+        .tile.path::before { 
+            content: ''; position: absolute; inset: 0; 
+            background-color: rgba(255, 215, 0, 0.4); /* 반투명 노란색 채움 */
+            border: 2px solid #ffd700; /* 실선 테두리 */
+            border-radius: 2px; z-index: 5; pointer-events: none;
+        }
+
+        /* 애니메이션 키프레임 */
+        @keyframes pulse-cyan { 0% { box-shadow: 0 0 5px #00e5ff; } 50% { box-shadow: 0 0 15px #00e5ff; } 100% { box-shadow: 0 0 5px #00e5ff; } }
+        @keyframes pulse-red { 0% { opacity: 0.7; transform: scale(0.98); } 100% { opacity: 1; transform: scale(1.02); } }
+
+        /* 타일 내부 요소 */
+        .subcell { border: 0.5px solid rgba(0,0,0,0.08); }
+        .subcell.obs-full { background-color: #111; box-shadow: inset 0 0 5px #000; } 
+        .subcell.obs-partial { background: repeating-linear-gradient(45deg, #555, #555 5px, #777 5px, #777 10px); }
+        .subcell.obs-weak { background-color: #009688; border: 1px solid #00796b; }
+
+        /* 시야/사거리 오버레이 (색감 조정) */
+        .l-green { background-color: rgba(76, 175, 80, 0.9); }
+        .l-yellow { background-color: rgba(255, 235, 59, 0.6); border: 1px solid #fff; }
+        .l-blue { background-color: rgba(33, 150, 243, 0.9); }
+
+        .subcell.sub-visible { background-color: rgba(76, 175, 80, 0.5) !important; }
+        .subcell.in-range { background-color: rgba(255, 235, 59, 0.3); box-shadow: inset 0 0 0 1px rgba(255, 235, 59, 0.6); }
+        .subcell.sub-visible.in-range { background-color: rgba(33, 150, 243, 0.6) !important; box-shadow: inset 0 0 0 1px #fff; }
+
+        /* --- 📱 모바일 세로 모드 대응 (미디어 쿼리) --- */
+        @media screen and (max-width: 768px) {
+            body { flex-direction: column; } /* 세로 배치 */
+            
+            .main-area { width: 100%; margin-right: 0; }
+            
+            .ui-header { padding: 8px 5px; }
+            .controls { justify-content: flex-start; } /* 스크롤 가능하게 */
+            
+            .bottom-ui { 
+                flex-direction: column; gap: 10px; padding-bottom: 20px;
+                background: rgba(30,30,30,0.95); backdrop-filter: blur(5px);
             }
+            #sim-controls { width: 100%; justify-content: center; }
+            #info-panel { width: 100%; }
+
+            /* 에디터 패널을 아래에서 올라오게 변경 (Bottom Sheet) */
+            #editor-panel {
+                top: auto; bottom: 0; left: 0; right: 0;
+                width: 100%; height: 60vh; /* 화면 절반 정도 */
+                border-left: none; border-top: 2px solid #444;
+                transform: translateY(100%); /* 아래로 숨김 */
+            }
+            #editor-panel.visible { transform: translateY(0); }
         }
     </style>
 </head>
@@ -166,9 +216,7 @@
             </div>
         </div>
 
-        <div id="grid-wrapper">
-            <div id="grid-container"></div>
-        </div>
+        <div id="grid-wrapper"><div id="grid-container"></div></div>
 
         <div class="bottom-ui">
             <div id="sim-controls">
@@ -176,7 +224,6 @@
                 <span id="tick-display" style="font-weight:bold; color: #fff; font-size:1.2em;">3</span>
                 <button class="tick-btn" onclick="changeVal(1)">+</button>
             </div>
-
             <div id="info-panel">
                 <div id="range-text">준비 완료</div>
                 <div id="detail-text">일반 모드</div>
@@ -191,7 +238,11 @@
     </div>
 
     <div id="editor-panel">
-        <button onclick="toggleEditor()" style="margin-bottom:10px; background:#444;">❌ 닫기</button>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+            <span style="font-weight:bold; color:white;">맵 에디터</span>
+            <button onclick="toggleEditor()" style="background:#444; padding:5px 10px;">❌ 닫기</button>
+        </div>
+        
         <div class="editor-section">
             <div class="editor-title">기본 도구</div>
             <button class="tool-btn selected" onclick="selectTool('ERASER')">⬜ 지우개</button>
@@ -216,6 +267,7 @@
     </div>
 
     <script>
+        // 1. 서비스 워커 등록
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./service-worker.js')
@@ -234,29 +286,13 @@
         const tickDisplay = document.getElementById('tick-display');
         const mapSelector = document.getElementById('map-selector');
         
-        let tiles = []; 
-        let isEditorMode = false;
-        let isSimMode = false;
-        let isRangeMode = false; 
-        let isArea1Active = false; 
-        let isArea2Active = false;
-        let isLOSActive = false;
-        let isMouseDown = false;
-        let currentTool = 'ERASER'; 
-        
-        let currentGridWidth = 12;
-        let currentGridHeight = 12;
-        
-        let startPoint = null;
-        let isLocked = false;
-        let maxTicks = 3;
-        let rangeValue = 4; 
-        let simSegments = []; 
-        let lockedAxis = null; 
-        let currentEditingMapName = null;
-        let savedMaps = {};
-
+        let tiles = []; let isEditorMode = false; let isSimMode = false; let isRangeMode = false; 
+        let isArea1Active = false; let isArea2Active = false; let isLOSActive = false; let isMouseDown = false;
+        let currentTool = 'ERASER'; let currentGridWidth = 12; let currentGridHeight = 12;
+        let startPoint = null; let isLocked = false; let maxTicks = 3; let rangeValue = 4; 
+        let simSegments = []; let lockedAxis = null; let currentEditingMapName = null; let savedMaps = {};
         let isDragging = false;
+        
         container.addEventListener('touchmove', handleTouchMove, { passive: false });
         container.addEventListener('touchstart', (e) => { isDragging = true; }, { passive: true });
         container.addEventListener('touchend', (e) => { isDragging = false; }, { passive: true });
@@ -285,22 +321,15 @@
 
         function initMapStorage() {
             const stored = localStorage.getItem('obsidian_saved_maps_v2');
-            if (stored) {
-                try { savedMaps = JSON.parse(stored); } 
-                catch(e) { console.error(e); savedMaps = {}; }
-            }
+            if (stored) { try { savedMaps = JSON.parse(stored); } catch(e) { console.error(e); savedMaps = {}; } }
             refreshMapDropdown();
         }
 
         function refreshMapDropdown() {
             const options = mapSelector.querySelectorAll('option');
-            mapSelector.innerHTML = '';
-            mapSelector.appendChild(options[0]);
-            mapSelector.appendChild(options[1]);
+            mapSelector.innerHTML = ''; mapSelector.appendChild(options[0]); mapSelector.appendChild(options[1]);
             Object.keys(savedMaps).sort().forEach(name => {
-                const opt = document.createElement('option');
-                opt.value = name; opt.textContent = name;
-                mapSelector.appendChild(opt);
+                const opt = document.createElement('option'); opt.value = name; opt.textContent = name; mapSelector.appendChild(opt);
             });
         }
 
@@ -310,12 +339,8 @@
             if (simSegments.length > 0) origin = simSegments[simSegments.length - 1].end;
             else if (startPoint) origin = startPoint;
 
-            if (isRangeMode && origin) {
-                calculateRangeArea(origin);
-                calculateLOS(origin); 
-            } else if (isLOSActive && origin) {
-                calculateLOS(origin);
-            }
+            if (isRangeMode && origin) { calculateRangeArea(origin); calculateLOS(origin); } 
+            else if (isLOSActive && origin) { calculateLOS(origin); }
         }
 
         function calculateRangeArea(origin) {
@@ -323,8 +348,7 @@
                 for(let x=0; x<currentGridWidth; x++) {
                     const dist = Math.abs(x - origin.x) + Math.abs(y - origin.y);
                     if (dist <= rangeValue) {
-                        const idx = y * currentGridWidth + x;
-                        const tile = tiles[idx];
+                        const idx = y * currentGridWidth + x; const tile = tiles[idx];
                         for(let i=0; i<9; i++) tile.children[i+1].classList.add('in-range');
                     }
                 }
@@ -332,22 +356,12 @@
         }
 
         function calculateLOS(origin) {
-            const tileX = origin.x * 3;
-            const tileY = origin.y * 3;
-            const inset = 0.01;
-            const originPoints = [
-                {x: tileX + 1.5, y: tileY + 1.5},
-                {x: tileX + inset, y: tileY + inset},
-                {x: tileX + 3 - inset, y: tileY + inset},
-                {x: tileX + inset, y: tileY + 3 - inset},
-                {x: tileX + 3 - inset, y: tileY + 3 - inset}
-            ];
-
+            const tileX = origin.x * 3; const tileY = origin.y * 3; const inset = 0.01;
+            const originPoints = [ {x: tileX + 1.5, y: tileY + 1.5}, {x: tileX + inset, y: tileY + inset}, {x: tileX + 3 - inset, y: tileY + inset}, {x: tileX + inset, y: tileY + 3 - inset}, {x: tileX + 3 - inset, y: tileY + 3 - inset} ];
             const blockers = [];
             for(let y=0; y<currentGridHeight; y++) {
                 for(let x=0; x<currentGridWidth; x++) {
-                    const idx = y * currentGridWidth + x;
-                    const tile = tiles[idx];
+                    const idx = y * currentGridWidth + x; const tile = tiles[idx];
                     for(let i=0; i<9; i++) {
                         if(tile.children[i+1].classList.contains('obs-full')) {
                             blockers.push({ x: x * 3 + (i % 3), y: y * 3 + Math.floor(i / 3), w: 1, h: 1, tx: x, ty: y });
@@ -355,50 +369,26 @@
                     }
                 }
             }
-
             const validOrigins = [];
             for (let op of originPoints) {
                 let insideWall = false;
-                for (let b of blockers) {
-                    if (op.x >= b.x && op.x <= b.x + 1 && op.y >= b.y && op.y <= b.y + 1) { 
-                        insideWall = true; 
-                        break; 
-                    }
-                }
+                for (let b of blockers) { if (op.x >= b.x && op.x <= b.x + 1 && op.y >= b.y && op.y <= b.y + 1) { insideWall = true; break; } }
                 if (!insideWall) validOrigins.push(op);
             }
             if (validOrigins.length === 0) return;
 
-            const gridW = currentGridWidth * 3;
-            const gridH = currentGridHeight * 3;
-
+            const gridW = currentGridWidth * 3; const gridH = currentGridHeight * 3;
             for (let gy = 0; gy < gridH; gy++) {
                 for (let gx = 0; gx < gridW; gx++) {
-                    const tx = Math.floor(gx / 3);
-                    const ty = Math.floor(gy / 3);
-                    const tileIdx = ty * currentGridWidth + tx;
-                    const tile = tiles[tileIdx];
-                    const subIdx = (gy % 3) * 3 + (gx % 3);
-                    
+                    const tx = Math.floor(gx / 3); const ty = Math.floor(gy / 3); const tileIdx = ty * currentGridWidth + tx; const tile = tiles[tileIdx]; const subIdx = (gy % 3) * 3 + (gx % 3);
                     if (!tile || tile.children[subIdx + 1].classList.contains('obs-full')) continue;
-
                     const tInset = 0.1;
-                    const targetPoints = [
-                        {x: gx + 0.5, y: gy + 0.5},
-                        {x: gx + tInset, y: gy + tInset},
-                        {x: gx + 1-tInset, y: gy + tInset},
-                        {x: gx + tInset, y: gy + 1-tInset},
-                        {x: gx + 1-tInset, y: gy + 1-tInset}
-                    ];
-                    
+                    const targetPoints = [ {x: gx + 0.5, y: gy + 0.5}, {x: gx + tInset, y: gy + tInset}, {x: gx + 1-tInset, y: gy + tInset}, {x: gx + tInset, y: gy + 1-tInset}, {x: gx + 1-tInset, y: gy + 1-tInset} ];
                     let isVisible = false;
                     outerCheck:
                     for (let op of validOrigins) {
                         for (let tp of targetPoints) {
-                            if (!isRayBlocked(op.x, op.y, tp.x, tp.y, blockers)) {
-                                isVisible = true;
-                                break outerCheck;
-                            }
+                            if (!isRayBlocked(op.x, op.y, tp.x, tp.y, blockers)) { isVisible = true; break outerCheck; }
                         }
                     }
                     if (isVisible) tile.children[subIdx + 1].classList.add('sub-visible');
@@ -407,8 +397,7 @@
         }
 
         function isRayBlocked(x0, y0, x1, y1, blockers) {
-            const tSubX = Math.floor(x1);
-            const tSubY = Math.floor(y1);
+            const tSubX = Math.floor(x1); const tSubY = Math.floor(y1);
             for (let b of blockers) {
                 if(b.x === tSubX && b.y === tSubY) continue;
                 if(lineIntersectsBox(x0, y0, x1, y1, b.x, b.y, 1, 1)) return true;
@@ -420,8 +409,7 @@
             const minX = bx, minY = by, maxX = bx + bw, maxY = by + bh;
             const dx = x2 - x1, dy = y2 - y1;
             let t0 = 0.0, t1 = 1.0;
-            const p = [-dx, dx, -dy, dy];
-            const q = [x1 - minX, maxX - x1, y1 - minY, maxY - y1];
+            const p = [-dx, dx, -dy, dy]; const q = [x1 - minX, maxX - x1, y1 - minY, maxY - y1];
             for(let i=0; i<4; i++) {
                 if(p[i] === 0) { if(q[i] < 0) return false; } 
                 else {
@@ -436,77 +424,30 @@
         function createGrid() {
             container.style.gridTemplateColumns = `repeat(${currentGridWidth}, 40px)`;
             container.style.gridTemplateRows = `repeat(${currentGridHeight}, 40px)`;
-            container.innerHTML = '';
-            tiles = [];
-
+            container.innerHTML = ''; tiles = [];
             for (let y = 0; y < currentGridHeight; y++) {
                 for (let x = 0; x < currentGridWidth; x++) {
-                    const tile = document.createElement('div');
-                    tile.classList.add('tile');
-                    tile.dataset.x = x; tile.dataset.y = y;
-                    
-                    const label = document.createElement('span');
-                    label.classList.add('coord-label');
-                    label.textContent = `${x},${y}`;
-                    tile.appendChild(label);
-                    
-                    for (let i = 0; i < 9; i++) {
-                        const sub = document.createElement('div');
-                        sub.classList.add('subcell');
-                        sub.dataset.idx = i; 
-                        tile.appendChild(sub);
-                    }
-                    
-                    tile.addEventListener('click', (e) => {
-                        if (isEditorMode) handleEditorClick(e, x, y);
-                        else if (isSimMode) handleSimClick(x, y);
-                        else handleMeasureClick(x, y);
-                    });
-                    
-                    tile.addEventListener('mouseenter', (e) => {
-                        if (isEditorMode && e.buttons === 1) handleEditorClick(e, x, y);
-                        else if (!isEditorMode) handleSimHover(x, y);
-                    });
-
-                    container.appendChild(tile);
-                    tiles.push(tile);
+                    const tile = document.createElement('div'); tile.classList.add('tile'); tile.dataset.x = x; tile.dataset.y = y;
+                    const label = document.createElement('span'); label.classList.add('coord-label'); label.textContent = `${x},${y}`; tile.appendChild(label);
+                    for (let i = 0; i < 9; i++) { const sub = document.createElement('div'); sub.classList.add('subcell'); sub.dataset.idx = i; tile.appendChild(sub); }
+                    tile.addEventListener('click', (e) => { if (isEditorMode) handleEditorClick(e, x, y); else if (isSimMode) handleSimClick(x, y); else handleMeasureClick(x, y); });
+                    tile.addEventListener('mouseenter', (e) => { if (isEditorMode && e.buttons === 1) handleEditorClick(e, x, y); else if (!isEditorMode) handleSimHover(x, y); });
+                    container.appendChild(tile); tiles.push(tile);
                 }
             }
-            updateAreaOverlay();
-            updateLOS();
+            updateAreaOverlay(); updateLOS();
         }
 
         function toggleEditor() {
-            isEditorMode = !isEditorMode;
-            const panel = document.getElementById('editor-panel');
-            const btn = document.getElementById('btn-editor');
-            if (isEditorMode) {
-                panel.classList.add('visible'); btn.classList.add('active');
-                infoPanel.classList.add('edit-mode');
-                resetMeasureState();
-                rangeText.textContent = "에디터 모드";
-                rangeText.style.color = "#4fc3f7";
-            } else {
-                panel.classList.remove('visible'); btn.classList.remove('active');
-                infoPanel.classList.remove('edit-mode');
-                rangeText.textContent = "일반 모드";
-            }
+            isEditorMode = !isEditorMode; const panel = document.getElementById('editor-panel'); const btn = document.getElementById('btn-editor');
+            if (isEditorMode) { panel.classList.add('visible'); btn.classList.add('active'); infoPanel.classList.add('edit-mode'); resetMeasureState(); rangeText.textContent = "에디터 모드"; rangeText.style.color = "#4fc3f7"; } 
+            else { panel.classList.remove('visible'); btn.classList.remove('active'); infoPanel.classList.remove('edit-mode'); rangeText.textContent = "일반 모드"; }
         }
-        function selectTool(tool) { currentTool = tool; 
-            document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('selected'));
-            event.target.classList.add('selected');
-        }
-        function handleEditorClick(e, x, y) {
-            const tile = tiles[y * currentGridWidth + x];
-            if(currentTool === 'ERASER') renderTileObject(tile, {t:null}); // Clear
-            else renderTileObject(tile, {t:currentTool});
-        }
+        function selectTool(tool) { currentTool = tool; document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('selected')); event.target.classList.add('selected'); }
+        function handleEditorClick(e, x, y) { const tile = tiles[y * currentGridWidth + x]; if(currentTool === 'ERASER') renderTileObject(tile, {t:null}); else renderTileObject(tile, {t:currentTool}); }
         function renderTileObject(tile, data) {
-            const subcells = tile.querySelectorAll('.subcell');
-            subcells.forEach(c => c.className = 'subcell'); // Clear
-            const type = data.t;
-            if(!type) return;
-            
+            const subcells = tile.querySelectorAll('.subcell'); subcells.forEach(c => c.className = 'subcell');
+            const type = data.t; if(!type) return;
             if(type === 'FULL') subcells.forEach(c => c.classList.add('obs-full'));
             else if(type === 'BLK_T') [0,1,2].forEach(i=>subcells[i].classList.add('obs-full'));
             else if(type === 'BLK_B') [6,7,8].forEach(i=>subcells[i].classList.add('obs-full'));
@@ -523,102 +464,44 @@
         }
         
         function applySymmetry(mode) {
-             const W = currentGridWidth; const H = currentGridHeight;
-             const halfH = Math.ceil(H/2); const halfW = Math.ceil(W/2);
+             const W = currentGridWidth; const H = currentGridHeight; const halfH = Math.ceil(H/2); const halfW = Math.ceil(W/2);
              let startX=0, endX=W, startY=0, endY=H;
-             if(mode==='T2B') endY=halfH; else if(mode==='B2T') startY=Math.floor(H/2);
-             else if(mode==='L2R') endX=halfW; else if(mode==='R2L') startX=Math.floor(W/2);
-             
+             if(mode==='T2B') endY=halfH; else if(mode==='B2T') startY=Math.floor(H/2); else if(mode==='L2R') endX=halfW; else if(mode==='R2L') startX=Math.floor(W/2);
              const updates = [];
              for(let y=startY; y<endY; y++) {
                  for(let x=startX; x<endX; x++) {
-                     const srcIdx = y*W+x; const srcTile=tiles[srcIdx];
-                     const tx=(W-1)-x; const ty=(H-1)-y;
-                     const cellData=[];
-                     srcTile.querySelectorAll('.subcell').forEach(c=>{
-                         if(c.classList.contains('obs-full')) cellData.push('obs-full');
-                         else if(c.classList.contains('obs-partial')) cellData.push('obs-partial');
-                         else cellData.push(null);
-                     });
+                     const srcIdx = y*W+x; const srcTile=tiles[srcIdx]; const tx=(W-1)-x; const ty=(H-1)-y; const cellData=[];
+                     srcTile.querySelectorAll('.subcell').forEach(c=>{ if(c.classList.contains('obs-full')) cellData.push('obs-full'); else if(c.classList.contains('obs-partial')) cellData.push('obs-partial'); else cellData.push(null); });
                      updates.push({tx,ty,cellData});
                  }
              }
-             updates.forEach(u=>{
-                 const t=tiles[u.ty*W+u.tx]; if(!t) return;
-                 for(let i=0;i<9;i++) {
-                     t.children[i+1].className='subcell';
-                     if(u.cellData[i]) t.children[(8-i)+1].classList.add(u.cellData[i]);
-                 }
-             });
+             updates.forEach(u=>{ const t=tiles[u.ty*W+u.tx]; if(!t) return; for(let i=0;i<9;i++) { t.children[i+1].className='subcell'; if(u.cellData[i]) t.children[(8-i)+1].classList.add(u.cellData[i]); } });
              updateLOS();
         }
 
         function toggleSimulator() {
-            isSimMode = !isSimMode; isRangeMode = false;
-            document.getElementById('btn-range').classList.remove('active');
-            const btn = document.getElementById('btn-sim');
-            if(isSimMode) {
-                btn.classList.add('active'); simControls.classList.add('visible'); 
-                infoPanel.classList.add('sim-mode'); infoPanel.classList.remove('range-mode');
-                resetSimState();
-                rangeText.textContent = "시뮬레이터 대기";
-                rangeText.style.color = "#4fc3f7";
-            } else {
-                btn.classList.remove('active'); simControls.classList.remove('visible');
-                infoPanel.classList.remove('sim-mode');
-                resetMeasureState();
-            }
+            isSimMode = !isSimMode; isRangeMode = false; document.getElementById('btn-range').classList.remove('active'); const btn = document.getElementById('btn-sim');
+            if(isSimMode) { btn.classList.add('active'); simControls.classList.add('visible'); infoPanel.classList.add('sim-mode'); infoPanel.classList.remove('range-mode'); resetSimState(); rangeText.textContent = "시뮬레이터 대기"; rangeText.style.color = "#4fc3f7"; } 
+            else { btn.classList.remove('active'); simControls.classList.remove('visible'); infoPanel.classList.remove('sim-mode'); resetMeasureState(); }
         }
         
         function toggleRangeMode() {
-            isRangeMode = !isRangeMode; isSimMode = false;
-            document.getElementById('btn-sim').classList.remove('active');
-            const btn = document.getElementById('btn-range');
-            if(isRangeMode) {
-                btn.classList.add('active'); simControls.classList.add('visible');
-                infoPanel.classList.add('range-mode'); infoPanel.classList.remove('sim-mode');
-                rangeText.textContent = "사거리 확인";
-                resetMeasureState();
-            } else {
-                btn.classList.remove('active'); simControls.classList.remove('visible');
-                infoPanel.classList.remove('range-mode');
-                resetMeasureState();
-                rangeText.textContent = "위치 선택";
-                rangeText.style.color = "#4fc3f7";
-            }
+            isRangeMode = !isRangeMode; isSimMode = false; document.getElementById('btn-sim').classList.remove('active'); const btn = document.getElementById('btn-range');
+            if(isRangeMode) { btn.classList.add('active'); simControls.classList.add('visible'); infoPanel.classList.add('range-mode'); infoPanel.classList.remove('sim-mode'); rangeText.textContent = "사거리 확인"; resetMeasureState(); } 
+            else { btn.classList.remove('active'); simControls.classList.remove('visible'); infoPanel.classList.remove('range-mode'); resetMeasureState(); rangeText.textContent = "위치 선택"; rangeText.style.color = "#4fc3f7"; }
             updateLOS();
         }
 
         function changeVal(delta) {
-            if(isSimMode) {
-                maxTicks+=delta; if(maxTicks<1) maxTicks=1;
-                document.getElementById('tick-display').textContent = maxTicks;
-                resetSimState();
-            } else if(isRangeMode) {
-                rangeValue+=delta; if(rangeValue<1) rangeValue=1;
-                document.getElementById('tick-display').textContent = rangeValue;
-                updateLOS();
-            }
+            if(isSimMode) { maxTicks+=delta; if(maxTicks<1) maxTicks=1; document.getElementById('tick-display').textContent = maxTicks; resetSimState(); } 
+            else if(isRangeMode) { rangeValue+=delta; if(rangeValue<1) rangeValue=1; document.getElementById('tick-display').textContent = rangeValue; updateLOS(); }
         }
 
-        function resetMeasureState() {
-            startPoint = null; isLocked = false; lockedAxis = null;
-            tiles.forEach(t => t.classList.remove('start', 'path', 'target', 'locked'));
-            updateLOS();
-        }
+        function resetMeasureState() { startPoint = null; isLocked = false; lockedAxis = null; tiles.forEach(t => t.classList.remove('start', 'path', 'target', 'locked')); updateLOS(); }
 
         function handleMeasureClick(x, y) {
-            if (!startPoint) {
-                startPoint = { x, y };
-                tiles[y * currentGridWidth + x].classList.add('start');
-                handleSimHover(x, y); updateLOS();
-                return;
-            }
-            if (isRangeMode) { // Re-click resets start
-                resetMeasureState(); startPoint = {x, y};
-                tiles[y * currentGridWidth + x].classList.add('start');
-                updateLOS(); return;
-            }
+            if (!startPoint) { startPoint = { x, y }; tiles[y * currentGridWidth + x].classList.add('start'); handleSimHover(x, y); updateLOS(); return; }
+            if (isRangeMode) { resetMeasureState(); startPoint = {x, y}; tiles[y * currentGridWidth + x].classList.add('start'); updateLOS(); return; }
             if (!isLocked) { isLocked = true; return; }
             resetMeasureState();
         }
@@ -635,24 +518,19 @@
             }
             if (tx === sx && ty === sy) lockedAxis = null;
             
-            // ✅ [수정됨] 변수 순서 오류 해결 (계산 후 사용)
             let cx, cy;
             if (lockedAxis === 'y') { cx = sx; cy = ty; } else { cx = tx; cy = sy; }
 
             const cells = [];
             let xDir = cx > sx ? 1 : -1; let yDir = cy > sy ? 1 : -1;
-
+            
             for(let i=1; i<=Math.abs(cx-sx); i++) cells.push({x:sx+i*xDir, y:sy});
             for(let i=1; i<=Math.abs(cy-sy); i++) cells.push({x:cx, y:sy+i*yDir});
             xDir = tx > cx ? 1 : -1; yDir = ty > cy ? 1 : -1;
             for(let i=1; i<=Math.abs(tx-cx); i++) cells.push({x:cx+i*xDir, y:cy});
             for(let i=1; i<=Math.abs(ty-cy); i++) cells.push({x:cx, y:cy+i*yDir});
 
-            cells.forEach(c => {
-                const idx = c.y * currentGridWidth + c.x;
-                if(tiles[idx]) tiles[idx].classList.add('path');
-            });
-            
+            cells.forEach(c => { const idx = c.y * currentGridWidth + c.x; if(tiles[idx]) tiles[idx].classList.add('path'); });
             const distX = Math.abs(tx - sx); const distY = Math.abs(ty - sy);
             rangeText.innerHTML = `거리: ${distX + distY} (가로${distX}+세로${distY})`;
             rangeText.style.color = "#4fc3f7";
@@ -664,8 +542,6 @@
         createGrid();
         initMapStorage();
         loadMap('hotspot');
-
     </script>
 </body>
 </html>
-
