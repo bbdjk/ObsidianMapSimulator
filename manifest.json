@@ -1,6 +1,6 @@
 {
   "name": "Obsidian Map Simulator",
-  "short_name": "MapSim",
+  "short_name": "맵 시뮬레이터",
   "description": "옵시디언 프로토콜 맵 시뮬레이터",
   "start_url": "./",
   "scope": "./",
