@@ -61,34 +61,33 @@
         }
 
         .main-area {
-            display: flex;
+             display: flex;
             flex-direction: column;
             align-items: center;
-            margin-right: 20px;
             flex: 1;
-            overflow: auto;
-            padding-bottom: 50px;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
             position: relative;
         }
 
         .ui-header {
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            background-color: #1e1e1e;
             width: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding-bottom: 10px;
+            background-color: #1e1e1e;
+            padding: 10px 0;
             border-bottom: 1px solid #333;
-            margin-bottom: 20px;
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
         }
 
         .controls { 
             display: flex; gap: 6px; 
-            flex-wrap: wrap; justify-content: center; max-width: 800px;
+            padding: 0 15px;
             align-items: center;
+            flex-wrap: nowrap;
         }
 
         .bottom-ui {
@@ -192,18 +191,30 @@
         #sim-controls.visible { display: flex; }
         .tick-btn { width: 35px; height: 35px; border-radius: 50%; padding: 0; font-size: 1.4em; line-height: 1;}
 
-        #grid-container {
-            display: grid; gap: 1px;
-            background-color: #444; border: 4px solid #333;
-            padding: 2px; border-radius: 4px;
+    #grid-container {
+            display: grid; 
+            gap: 1px;
+            background-color: #444; 
+            border: 4px solid #333;
+            padding: 2px; 
+            border-radius: 4px;
             touch-action: none;
+            /* 화면 크기에 맞춰 맵이 자동으로 줄어듦 */
+            max-width: 98vw;
+            max-height: 65vh;
+            margin: auto;
         }
 
         /* ✅ 타일 크기 65px (1.5배 확대) */
-        .tile {
-            width: 65px; height: 65px; background-color: #fff;
-            display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr);
-            position: relative; cursor: crosshair;
+    .tile {
+            width: min(65px, 7.8vw); 
+            height: min(65px, 7.8vw);
+            background-color: #fff;
+            display: grid; 
+            grid-template-columns: repeat(3, 1fr); 
+            grid-template-rows: repeat(3, 1fr);
+            position: relative; 
+            cursor: crosshair;
         }
         
         .tile.area-red { background-color: rgba(255, 50, 50, 0.02) !important; box-shadow: inset 0 0 0 2px rgba(255, 50, 50, 0.3); }
@@ -1406,4 +1417,5 @@
     </script>
 </body>
 </html>
+
 
