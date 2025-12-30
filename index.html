@@ -46,23 +46,15 @@
             font-family: 'Segoe UI', sans-serif;
             background-color: #1e1e1e;
             color: #e0e0e0;
-            display: flex;
-            flex-direction: row;
-            justify-content: center;
             margin: 0;
-            padding: 20px;
-            /* user-select는 유지하되, touch-action을 변경하여 이동/확대 허용 */
-            user-select: none;
+            padding: 0;
             width: 100vw;
             height: 100vh;
-            /* 맵이 커지면 화면이 넘어가야 하므로 hidden 대신 auto/scroll */
-            overflow: hidden; 
-            flex-direction: column;
+            display: flex;
+            flex-direction: column; /* 세로로 순서대로 쌓음 */
+            overflow: hidden; /* 전체 페이지 스크롤은 막음 */
+            user-select: none;
             touch-action: manipulation;
-            /* 아이폰 하단 바 영역 침범 방지 */
-            padding-bottom: env(safe-area-inset-bottom);
-            padding-left: env(safe-area-inset-left);
-            padding-right: env(safe-area-inset-right);
         }
 
         .main-area {
@@ -81,16 +73,15 @@
 
         .ui-header {
             width: 100%;
-            background-color: #1e1e1e;
-            padding: 10px 0;
+            background-color: #252525;
+            padding: 8px 0;
             border-bottom: 1px solid #333;
             z-index: 100;
             display: flex;
             justify-content: center;
             overflow-x: auto;
             -webkit-overflow-scrolling: touch;
-            flex-shrink: 0;
-            white-space: nowrap;
+            flex-shrink: 0; /* 높이 고정 */
         }
 
         .controls { 
@@ -112,24 +103,21 @@
             z-index: 100;
             /* 아이폰 하단 홈바 영역 대응 */
             padding-bottom: max(10px, env(safe-area-inset-bottom));
-            
         }
 
-        #info-panel {
+       #info-panel {
             text-align: center;
             background: #2d2d2d;
-            padding: 15px 30px;
+            padding: 12px 20px;
             border-radius: 8px;
             border: 1px solid #444;
-            width: 80%;
+            width: 95%;
             max-width: 600px;
-            height: auto; 
-            min-height: 100px;
+            min-height: 80px;
             display: flex;
             flex-direction: column;
             justify-content: center;
             transition: 0.3s;
-            position: relative;
         }
         #info-panel.edit-mode { border-color: #009688; background-color: #004d40; }
         #info-panel.sim-mode { border-color: #9c27b0; background-color: #4a148c; }
@@ -214,11 +202,7 @@
             border: 4px solid #333;
             padding: 2px; 
             border-radius: 4px;
-            touch-action: auto;
-            /* 화면 크기에 맞춰 맵이 자동으로 줄어듦 */
-            max-width: 98vw;
-            max-height: 65vh;
-            margin: auto;
+            margin: auto; /* 중앙 배치 유지 */
         }
 
         /* ✅ 타일 크기 65px (1.5배 확대) */
@@ -230,7 +214,6 @@
             grid-template-columns: repeat(3, 1fr); 
             grid-template-rows: repeat(3, 1fr);
             position: relative; 
-            cursor: crosshair;
         }
         
         .tile.area-red { background-color: rgba(255, 50, 50, 0.02) !important; box-shadow: inset 0 0 0 2px rgba(255, 50, 50, 0.3); }
@@ -1433,6 +1416,7 @@
     </script>
 </body>
 </html>
+
 
 
 
