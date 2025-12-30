@@ -1,14 +1,30 @@
 {
-  "name": "Obsidian Map Tool",
-  "short_name": "ObsidianMap",
-"start_url": "./",
-"scope": "./"
+  "name": "Obsidian Map Simulator",
+  "short_name": "MapSim",
+  "description": "옵시디언 프로토콜 맵 시뮬레이터",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
-  "background_color": "#1e1e1e",
-  "theme_color": "#1e1e1e",
-  "orientation": "landscape",
-"icons": [
-  { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
-  { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
-]
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
 }
