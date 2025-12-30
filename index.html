@@ -4,15 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, orientation=landscape">
     
-   <link rel="manifest" href="./manifest.json">
-    <meta name="theme-color" content="#1e1e1e">
-<link rel="icon" href="./icon-192.png">
-<link rel="apple-touch-icon" href="./icon-192.png">
-<meta name="theme-color" content="#000000">
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#000000">
+    <link rel="icon" href="./icon-192.png">
+    <link rel="apple-touch-icon" href="./icon-192.png">
 
     <title>Obsidian Protocol Map Tool v54 (Final Fixed)</title>
     <style>
-        /* 스타일은 기존 v54와 동일 (다크 테마 + 시야 버그 수정 스타일) */
         * { box-sizing: border-box; }
         body {
             font-family: 'Segoe UI', sans-serif;
@@ -26,47 +24,28 @@
         }
 
         .main-area {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-            position: relative;
+            flex: 1; display: flex; flex-direction: column; height: 100%; position: relative;
         }
 
         .ui-header {
-            background-color: #252525;
-            padding: 8px;
-            border-bottom: 1px solid #333;
-            display: flex;
-            justify-content: center;
-            flex-shrink: 0;
-            z-index: 10;
+            background-color: #252525; padding: 8px; border-bottom: 1px solid #333;
+            display: flex; justify-content: center; flex-shrink: 0; z-index: 10;
         }
 
         .controls { 
-            display: flex; gap: 6px; 
-            flex-wrap: nowrap; overflow-x: auto; 
-            align-items: center; padding-bottom: 2px;
-            -webkit-overflow-scrolling: touch;
+            display: flex; gap: 6px; flex-wrap: nowrap; overflow-x: auto; 
+            align-items: center; padding-bottom: 2px; -webkit-overflow-scrolling: touch;
         }
         .controls::-webkit-scrollbar { display: none; }
 
         #grid-wrapper {
-            flex: 1;
-            overflow: auto;
-            position: relative;
-            background: #111;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            flex: 1; overflow: auto; position: relative; background: #111;
+            display: flex; justify-content: center; align-items: center;
         }
         
         #grid-container {
-            display: grid; gap: 1px;
-            background-color: #444; border: 2px solid #555;
-            padding: 1px;
-            touch-action: none;
-            transform-origin: center top;
+            display: grid; gap: 1px; background-color: #444; border: 2px solid #555;
+            padding: 1px; touch-action: none; transform-origin: center top;
         }
 
         .tile {
@@ -76,39 +55,20 @@
         }
 
         .bottom-ui {
-            background-color: #1e1e1e;
-            border-top: 1px solid #333;
-            padding: 10px;
-            display: flex;
-            flex-direction: row;
-            align-items: center;
-            justify-content: space-between;
-            gap: 10px;
-            flex-shrink: 0;
-            height: 90px;
+            background-color: #1e1e1e; border-top: 1px solid #333; padding: 10px;
+            display: flex; flex-direction: row; align-items: center; justify-content: space-between;
+            gap: 10px; flex-shrink: 0; height: 90px;
         }
 
         #info-panel {
-            flex: 1;
-            background: #2d2d2d;
-            padding: 5px 15px;
-            border-radius: 8px;
-            border: 2px solid #444;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            font-size: 0.9em;
-            position: relative;
-            transition: all 0.3s;
+            flex: 1; background: #2d2d2d; padding: 5px 15px; border-radius: 8px; border: 2px solid #444;
+            height: 100%; display: flex; flex-direction: column; justify-content: center;
+            font-size: 0.9em; position: relative; transition: all 0.3s;
         }
         #info-panel.edit-mode { border-color: #009688; background-color: #004d40; }
         #info-panel.sim-mode { border-color: #9c27b0; background-color: #4a148c; }
-        
         #info-panel.range-mode { 
-            border-color: #ff9800; 
-            background-color: #111; 
-            box-shadow: inset 0 0 20px rgba(255, 152, 0, 0.1);
+            border-color: #ff9800; background-color: #111; box-shadow: inset 0 0 20px rgba(255, 152, 0, 0.1);
         }
         #info-panel.range-mode #range-text { color: #ffb74d; }
         #info-panel.range-mode #detail-text { color: #ffe0b2; }
@@ -124,18 +84,14 @@
         .legend-color { width: 10px; height: 10px; border-radius: 2px; }
 
         #sim-controls {
-            display: none; align-items: center; gap: 8px;
-            background: #333; padding: 5px 10px;
-            border-radius: 20px; border: 1px solid #555;
-            height: 100%;
+            display: none; align-items: center; gap: 8px; background: #333; padding: 5px 10px;
+            border-radius: 20px; border: 1px solid #555; height: 100%;
         }
         #sim-controls.visible { display: flex; }
 
         button {
-            padding: 8px 12px;
-            background: #3a3a3a; color: white;
-            border: 1px solid #555; border-radius: 4px;
-            font-weight: 600; white-space: nowrap; font-size: 0.85em;
+            padding: 8px 12px; background: #3a3a3a; color: white;
+            border: 1px solid #555; border-radius: 4px; font-weight: 600; white-space: nowrap; font-size: 0.85em;
         }
         button.active { background-color: #2e7d32; border-color: #1b5e20; }
         .tick-btn { width: 40px; height: 40px; border-radius: 50%; font-size: 1.5em; padding:0; display:flex; align-items:center; justify-content:center;}
@@ -144,12 +100,9 @@
         #btn-range.active { background-color: #e65100; color: white; box-shadow: 0 0 10px #ff9800; }
 
         #editor-panel {
-            position: absolute; top: 0; right: 0; bottom: 0;
-            width: 280px; background: #222;
-            border-left: 1px solid #444; padding: 15px;
-            display: flex; flex-direction: column; overflow-y: auto;
-            transform: translateX(100%); transition: transform 0.3s;
-            z-index: 100; box-shadow: -5px 0 15px rgba(0,0,0,0.5);
+            position: absolute; top: 0; right: 0; bottom: 0; width: 280px; background: #222;
+            border-left: 1px solid #444; padding: 15px; display: flex; flex-direction: column; overflow-y: auto;
+            transform: translateX(100%); transition: transform 0.3s; z-index: 100; box-shadow: -5px 0 15px rgba(0,0,0,0.5);
         }
         #editor-panel.visible { transform: translateX(0); }
 
@@ -160,11 +113,9 @@
         .tool-btn { width: 100%; text-align: left; margin-bottom: 5px; padding: 12px; background: #333; border: 1px solid #444; color: #ccc;}
         .tool-btn.selected { background: #009688; color: white; }
 
-        /* 타일 스타일 */
         .subcell.sub-visible { background-color: rgba(76, 175, 80, 0.6) !important; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.15); }
         .subcell.in-range { background-color: rgba(255, 235, 59, 0.25); box-shadow: inset 0 0 0 1px rgba(255, 235, 59, 0.5); }
         .subcell.sub-visible.in-range { background-color: rgba(0, 191, 255, 0.65) !important; box-shadow: inset 0 0 0 1px #fff; }
-        
         .subcell.obs-full { background-color: #111; } 
         .subcell.obs-partial { background-color: #777; background-image: repeating-linear-gradient(45deg, #666, #666 2px, #777 2px, #777 4px); }
         .subcell.obs-weak { background-color: #009688; }
@@ -181,8 +132,7 @@
                 content: "가로 모드로 회전해주세요 🔄";
                 position: fixed; top:0; left:0; right:0; bottom:0;
                 background: rgba(0,0,0,0.9); z-index: 9999;
-                display: flex; justify-content: center; align-items: center;
-                color: white; font-size: 1.5em;
+                display: flex; justify-content: center; align-items: center; color: white; font-size: 1.5em;
             }
         }
     </style>
@@ -220,7 +170,6 @@
                 <div id="range-text">준비 완료</div>
                 <div id="detail-text">일반 모드</div>
                 <div id="status-text">시작 지점을 터치하세요</div>
-                
                 <div class="legend-box">
                     <div class="legend-item"><div class="legend-color l-green"></div>시야</div>
                     <div class="legend-item"><div class="legend-color l-yellow"></div>사거리</div>
@@ -256,7 +205,6 @@
     </div>
 
     <script>
-        // ✅ [필수] PWA 서비스 워커 등록 코드 (이게 있어야 앱 설치됨!)
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./service-worker.js')
@@ -676,10 +624,12 @@
             }
             if (tx === sx && ty === sy) lockedAxis = null;
             
-            const cells = [];
-            let xDir = cx > sx ? 1 : -1; let yDir = cy > sy ? 1 : -1;
+            // ✅ [수정됨] 변수 순서 오류 해결 (계산 후 사용)
             let cx, cy;
             if (lockedAxis === 'y') { cx = sx; cy = ty; } else { cx = tx; cy = sy; }
+
+            const cells = [];
+            let xDir = cx > sx ? 1 : -1; let yDir = cy > sy ? 1 : -1;
 
             for(let i=1; i<=Math.abs(cx-sx); i++) cells.push({x:sx+i*xDir, y:sy});
             for(let i=1; i<=Math.abs(cy-sy); i++) cells.push({x:cx, y:sy+i*yDir});
@@ -707,5 +657,3 @@
     </script>
 </body>
 </html>
-
-
