@@ -1,27 +1,24 @@
 {
-  "background_color": "#ffffff",
-  "dir": "ltr",
+  "name": "Obsidian Map Tool",
+  "short_name": "ObsidianMap",
+  "start_url": "index.html",
   "display": "standalone",
-  "name": "bbdjk.github",
-  "orientation": "landscape-primary",
-  "scope": "https://bbdjk.github.io/ObsidianMapSimulator/",
-  "short_name": "bbdjk.github",
-  "start_url": "https://bbdjk.github.io/ObsidianMapSimulator/",
+  "background_color": "#1e1e1e",
   "theme_color": "#1e1e1e",
+  "orientation": "landscape",
+  "scope": ".",
   "icons": [
     {
-      "src": "https://bbdjk.github.io/ObsidianMapSimulator/icon-192.png",
-      "type": "image/png",
+      "src": "icon-192.png",
       "sizes": "192x192",
-      "isSquare": true,
-      "isPng": true,
-      "isWebp": false,
-      "isJpg": false,
-      "width": 192,
-      "is512x512": false,
-      "is256x256": false,
-      "is192x192": true
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
     }
-  ],
-  "lang": "en"
+  ]
 }
