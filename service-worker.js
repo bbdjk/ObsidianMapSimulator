@@ -36,5 +36,15 @@ self.addEventListener("fetch", (event) => {
 
   event.respondWith(
     caches.match(req).then((cached) => cached || fetch(req))
+
+    if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("/ObsidianMapSimulator/service-worker.js");
+
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    window.location.reload();
+  });
+}
+
   );
 });
+
