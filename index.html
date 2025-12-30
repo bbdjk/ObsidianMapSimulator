@@ -4,27 +4,43 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, orientation=landscape, viewport-fit=cover">
     
-    <link rel="manifest" href="./manifest.json?v=7">
+    <link rel="manifest" href="./manifest.json?v=8">
     <meta name="theme-color" content="#1e1e1e">
     <link rel="icon" href="./icon-192.png">
+    <link rel="apple-touch-icon" href="./icon-192.png">
 
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="ObsidianMap">
-    <link rel="apple-touch-icon" href="./icon-192.png">
 
     <script>
       if ("serviceWorker" in navigator) {
-        navigator.serviceWorker.register("./service-worker.js");
+        // 경로 문제 방지를 위해 ./ 사용 (GitHub Pages 호환)
+        navigator.serviceWorker.register("./service-worker.js").then(reg => {
+            console.log("SW Registered");
+            
+            // 업데이트가 발견되면 대기 중인 상태를 건너뛰고 즉시 로드 시도
+            reg.addEventListener('updatefound', () => {
+                const newWorker = reg.installing;
+                newWorker.addEventListener('statechange', () => {
+                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                        // 새 버전이 설치되면 새로고침
+                        window.location.reload();
+                    }
+                });
+            });
+        });
+
+        // 이미 활성화된 서비스 워커가 바뀌면(새 버전) 새로고침
         navigator.serviceWorker.addEventListener("controllerchange", () => {
           window.location.reload();
         });
       }
     </script>
 
-    <title>Obsidian Protocol Map Tool v60 (iOS Ready)</title>
+    <title>Obsidian Protocol Map Tool v61 (Final Complete)</title>
     <style>
-        /* 기존 스타일 유지 (타일 크기 65px 등 v59 버전 그대로) */
+        /* --- 스타일: 사용자 원본 + 1.5배 크기 + 모바일 대응 --- */
         body {
             font-family: 'Segoe UI', sans-serif;
             background-color: #1e1e1e;
@@ -37,7 +53,8 @@
             user-select: none;
             height: 100vh;
             overflow: hidden;
-            /* 아이폰 노치 대응 */
+            /* 아이폰 하단 바 영역 침범 방지 */
+            padding-bottom: env(safe-area-inset-bottom);
             padding-left: env(safe-area-inset-left);
             padding-right: env(safe-area-inset-right);
         }
@@ -181,6 +198,7 @@
             touch-action: none;
         }
 
+        /* ✅ 타일 크기 65px (1.5배 확대) */
         .tile {
             width: 65px; height: 65px; background-color: #fff;
             display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr);
@@ -273,6 +291,25 @@
             display: flex; align-items: center; gap: 5px; background: #333; padding: 10px; border-radius: 4px;
         }
         .size-input { width: 45px; padding: 5px; background: #222; color: white; border: 1px solid #555; font-weight: bold; text-align: center;}
+
+        /* --- 📱 모바일 세로 모드 대응 --- */
+        @media screen and (orientation: portrait) {
+            body { flex-direction: column; overflow-y: auto; }
+            .main-area { width: 100%; height: auto; margin-right: 0; }
+            .ui-header { overflow-x: auto; justify-content: flex-start; padding: 5px; }
+            .bottom-ui { 
+                flex-direction: column; gap: 10px; padding-bottom: 20px; min-height: 120px;
+                background: #1e1e1e;
+            }
+            #sim-controls { width: 100%; justify-content: center; }
+            #info-panel { width: 100%; margin-bottom: 20px;}
+            
+            /* 에디터 패널: 모바일에서는 아래에서 위로 올라오게 */
+            #editor-panel {
+                top: auto; bottom: 0; left: 0; right: 0; width: 100%; height: 50vh;
+                border-left: none; border-top: 2px solid #444;
+            }
+        }
     </style>
 </head>
 <body>
@@ -401,14 +438,6 @@
     </div>
 
     <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./service-worker.js')
-                    .then(() => console.log('Service Worker Registered'))
-                    .catch((err) => console.log('SW Failed', err));
-            });
-        }
-
         const container = document.getElementById('grid-container');
         const infoPanel = document.getElementById('info-panel');
         const rangeText = document.getElementById('range-text');
@@ -895,6 +924,10 @@
                 }
                 if (tx === currentStart.x && ty === currentStart.y) lockedAxis = null;
 
+                // ✅ 수정된 변수 순서 (버그 해결)
+                let cx, cy;
+                if (lockedAxis === 'y') { cx = currentStart.x; cy = ty; } else { cx = tx; cy = currentStart.y; }
+
                 drawPathWithAxis(currentStart, {x: tx, y: ty}, currentIdx, lockedAxis);
                 
                 const currDist = Math.abs(tx - currentStart.x) + Math.abs(ty - currentStart.y);
@@ -947,7 +980,8 @@
 
         // --- 그리드 생성 및 변경 ---
         function createGrid() {
-            container.style.gridTemplateColumns = `repeat(${currentGridWidth}, 65px)`; // 타일 크기 65px
+            // ✅ [타일 크기 65px로 확대 유지]
+            container.style.gridTemplateColumns = `repeat(${currentGridWidth}, 65px)`;
             container.style.gridTemplateRows = `repeat(${currentGridHeight}, 65px)`;
             container.innerHTML = '';
             tiles = [];
