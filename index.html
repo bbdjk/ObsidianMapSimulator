@@ -54,15 +54,15 @@
             flex-direction: row;
             justify-content: center;
             margin: 0;
-            padding: var(--app-pad);
             user-select: none;
             height: calc(var(--vh) * 100);
             overflow: hidden;
+            /* Safe-area + app padding */
+            padding-top: calc(var(--app-pad) + env(safe-area-inset-top));
+            padding-bottom: calc(var(--app-pad) + env(safe-area-inset-bottom));
+            padding-left: calc(var(--app-pad) + env(safe-area-inset-left));
+            padding-right: calc(var(--app-pad) + env(safe-area-inset-right));
             /* 아이폰 하단 바 영역 침범 방지 */
-            padding-top: env(safe-area-inset-top);
-            padding-bottom: env(safe-area-inset-bottom);
-            padding-left: env(safe-area-inset-left);
-            padding-right: env(safe-area-inset-right);
         }
 
         .main-area {
@@ -95,6 +95,7 @@
             display: flex; gap: 6px; 
             flex-wrap: wrap; justify-content: center; max-width: 800px;
             align-items: center;
+            white-space: nowrap;
         }
 
         .bottom-ui {
@@ -201,12 +202,13 @@
         #grid-container {
             display: grid; gap: 1px;
             background-color: #444; border: 4px solid #333;
-            padding: 2px; border-radius: 4px;
-            touch-action: none;
+            padding: 2px; border-radius: 4px;            touch-action: pan-x pan-y;
             overscroll-behavior: contain;
         }
 
-        #grid-wrap{
+        
+        body.editor-open #grid-container{ touch-action: none; }
+#grid-wrap{
             width: 100%;
             flex: 1 1 auto;
             min-height: 0;
@@ -320,7 +322,7 @@
 
         /* --- 📱 모바일 세로 모드 대응 --- */
         @media screen and (orientation: portrait) {
-            body { flex-direction: column; overflow-y: auto; }
+            body { flex-direction: column; overflow: hidden; }
             .main-area { width: 100%; height: auto; margin-right: 0; }
             .ui-header { overflow-x: auto; justify-content: flex-start; padding: 5px; }
             .bottom-ui { 
@@ -332,6 +334,7 @@
             
             /* 에디터 패널: 모바일에서는 아래에서 위로 올라오게 */
             #editor-panel {
+                position: fixed;
                 top: auto; bottom: 0; left: 0; right: 0; width: 100%; height: 50vh;
                 border-left: none; border-top: 2px solid #444;
             }
@@ -339,8 +342,31 @@
     
         /* ✅ 모바일/작은 화면(가로 포함) 대응: 잘림 방지 + 타일 축소 + 에디터 패널 하단 오버레이 */
         @media (max-width: 900px) {
-            :root { --tile-size: 46px; --app-pad: 10px; }
-            body { flex-direction: column; overflow: hidden; }
+            :root { --tile-size: clamp(34px, 8vw, 52px); --app-pad: 10px; }
+            body { 
+    flex-direction: column; 
+    overflow: hidden;
+}
+.main-area { 
+    flex: 1 1 auto; 
+    height: 100%;
+    min-height: 0;
+    margin-right: 0; 
+    padding-bottom: 0;
+}
+#grid-wrap{
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+}
+.bottom-ui{
+    margin-top: 10px;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom));
+}
+.controls > * { flex: 0 0 auto; }
+body.editor-open .main-area{ padding-bottom: calc(45dvh + 12px); }
+body.editor-open #grid-wrap{ padding-bottom: 45dvh; }
             .main-area { width: 100%; margin-right: 0; }
             .ui-header { overflow-x: auto; -webkit-overflow-scrolling: touch; }
             #editor-panel{
@@ -571,44 +597,64 @@ const widthInput = document.getElementById('grid-width-input');
         }
 
         function initPointerInput(){
-            if(pointerInitialized) return;
-            pointerInitialized = true;
+    if(pointerInitialized) return;
+    pointerInitialized = true;
 
-            const opts = { passive: false };
+    const opts = { passive: false };
 
-            container.addEventListener('pointerdown', (e) => {
-                // 좌클릭/터치만 처리
-                if (e.pointerType === 'mouse' && e.button !== 0) return;
+    container.addEventListener('pointerdown', (e) => {
+        // 좌클릭/터치만 처리
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
 
-                isPointerDown = true;
-                activePointerId = e.pointerId;
-                try { container.setPointerCapture(activePointerId); } catch(_) {}
+        // 모바일에서 스크롤이 막히지 않도록:
+        // - 드래그(연속 입력)는 에디터 모드에서만 캡처/기본동작 차단
+        // - 그 외 모드에서는 "탭"만 처리하고, 드래그는 grid-wrap 스크롤에 맡김
+        if (isEditorMode) {
+            isPointerDown = true;
+            activePointerId = e.pointerId;
+            try { container.setPointerCapture(activePointerId); } catch(_) {}
+            e.preventDefault();
+            processPointer(e, 'down');
+        } else {
+            activePointerId = null;
+            processPointer(e, 'down');
+        }
+    }, opts);
+
+    container.addEventListener('pointermove', (e) => {
+        // 에디터 모드: 드래그 드로잉
+        if (isEditorMode) {
+            if (activePointerId !== null && e.pointerId !== activePointerId) return;
+            if (isPointerDown) {
                 e.preventDefault();
-                processPointer(e, 'down');
-            }, opts);
-
-            container.addEventListener('pointermove', (e) => {
-                if (activePointerId !== null && e.pointerId !== activePointerId) return;
-                if (isPointerDown || isSimMode) e.preventDefault();
                 processPointer(e, 'move');
-            }, opts);
-
-            const end = (e) => {
-                if (activePointerId !== null && e.pointerId !== activePointerId) return;
-                isPointerDown = false;
-                try { container.releasePointerCapture(e.pointerId); } catch(_) {}
-                activePointerId = null;
-            };
-
-            container.addEventListener('pointerup', end, opts);
-            container.addEventListener('pointercancel', end, opts);
-            container.addEventListener('lostpointercapture', () => {
-                isPointerDown = false;
-                activePointerId = null;
-            }, opts);
+            }
+            return;
         }
 
-        // --- 맵 데이터 ---
+        // 데스크탑 마우스에서만 hover UI 유지
+        if (e.pointerType === 'mouse' && isSimMode) {
+            processPointer(e, 'move');
+        }
+    }, opts);
+
+    const end = (e) => {
+        if (!isEditorMode) return;
+        if (activePointerId !== null && e.pointerId !== activePointerId) return;
+        isPointerDown = false;
+        try { container.releasePointerCapture(e.pointerId); } catch(_) {}
+        activePointerId = null;
+    };
+
+    container.addEventListener('pointerup', end, opts);
+    container.addEventListener('pointercancel', end, opts);
+    container.addEventListener('lostpointercapture', () => {
+        isPointerDown = false;
+        activePointerId = null;
+    }, opts);
+}
+
+// --- 맵 데이터 ---
         const defaultMaps = {
             hotspot: [
                 {x:9, y:1, t:'CONTAINER', idx:[8]}, {x:7, y:2, t:'FULL'}, {x:8, y:2, t:'CONTAINER', idx:[2]}, {x:10, y:2, t:'BLK_B'},
@@ -1363,7 +1409,7 @@ container.appendChild(tile);
             isEditorMode = !isEditorMode;
             const btn = document.getElementById('btn-editor');
             if (isEditorMode) {
-                btn.classList.add('active'); editorPanel.classList.add('visible'); infoPanel.classList.add('edit-mode');
+                btn.classList.add('active'); document.body.classList.add('editor-open'); editorPanel.classList.add('visible'); infoPanel.classList.add('edit-mode');
                 resetMeasureState(); rangeText.textContent = "맵 에디터"; detailText.textContent = "타일 배치 / 코드 복사"; statusText.textContent = "타일 클릭 (드래그 가능)";
             } else {
                 btn.classList.remove('active'); editorPanel.classList.remove('visible'); infoPanel.classList.remove('edit-mode');
