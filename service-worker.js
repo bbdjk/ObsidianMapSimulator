@@ -6,6 +6,8 @@ const ASSETS = [
   './icon-192.png',
   './icon-512.png'
 ];
+self.addEventListener("install", () => self.skipWaiting());
+self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));
 
 self.addEventListener('install', (e) => {
   e.waitUntil(
@@ -18,3 +20,4 @@ self.addEventListener('fetch', (e) => {
     caches.match(e.request).then((response) => response || fetch(e.request))
   );
 });
+
