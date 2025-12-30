@@ -4,11 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, orientation=landscape">
     
-    <link rel="manifest" href="./manifest.json">
+    <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#1e1e1e">
-    <link rel="apple-touch-icon" href="./icon-192.png">
+    <link rel="apple-touch-icon" href="icon-192.png">
 
-    <title>Obsidian Protocol Map Tool v54 (Fixed)</title>
+    <title>Obsidian Protocol Map Tool v54 (Final Fixed)</title>
     <style>
         /* 스타일은 기존 v54와 동일 (다크 테마 + 시야 버그 수정 스타일) */
         * { box-sizing: border-box; }
@@ -254,7 +254,7 @@
     </div>
 
     <script>
-        // --- 3. 서비스 워커 등록 (설치를 위해 필수!) ---
+        // ✅ [필수] PWA 서비스 워커 등록 코드 (이게 있어야 앱 설치됨!)
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./service-worker.js')
