@@ -117,23 +117,34 @@
         #btn-header-toggle:hover{ background:#3a3a3a; }
 
         /* --- 맵 위 오버레이 토글 버튼 --- */
-        #grid-wrap{ position: relative; width: 100%; display: flex; justify-content: center; }
-        #grid-container{ position: relative; }
+        #grid-wrap{ position: relative; width: 100%; display: flex; flex-direction: column; align-items: center; }
+        
+        #map-toggle-row{
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 8px 0 10px;
+            pointer-events: auto;
+        }
+#grid-container{ position: relative; }
 
         #btn-header-toggle.map-toggle{
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            z-index: 150;
-            border-radius: 12px;
-            min-width: 180px; /* 기존 대비 크게 */
-            padding: 12px 14px;
-            font-size: 0.95em;
-            background: rgba(43,43,43,0.92);
-            border: 1px solid rgba(255,255,255,0.25);
-            backdrop-filter: blur(6px);
-            -webkit-backdrop-filter: blur(6px);
-        }
+    position: static;
+    z-index: 150;
+    border-radius: 12px;
+    min-width: 90px; /* 기존 대비 절반 정도 */
+    min-height: 40px; /* 세로도 줄임 */
+    padding: 6px 10px;
+    font-size: 1.0em;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(43,43,43,0.92);
+    border: 1px solid rgba(255,255,255,0.25);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+}
 
         @media (max-width: 900px){
             #btn-header-toggle.map-toggle{
@@ -478,7 +489,9 @@
             </div>
         </div>
         <div id="grid-wrap">
-            <button id="btn-header-toggle" class="map-toggle" type="button" aria-expanded="true" onclick="toggleHeaderUI()">▴ 상단 메뉴 접기</button>
+            <div id="map-toggle-row">
+            <button id="btn-header-toggle" class="map-toggle" type="button" aria-expanded="true" onclick="toggleHeaderUI()" aria-label="상단 메뉴 접기/펼치기">▴</button>
+        </div>
             <div id="grid-container"></div>
         </div>
 <div class="bottom-ui">
@@ -625,9 +638,11 @@
             const headerH = headerEl ? headerEl.getBoundingClientRect().height : 0;
             const bottomH = bottomEl ? bottomEl.getBoundingClientRect().height : 0;
 
+
+            const toggleH = toggleRowEl ? toggleRowEl.getBoundingClientRect().height : 0;
             // 남는 영역(맵)에 맞춰 타일을 축소 (세로/가로 모두 대응)
             const availableW = Math.max(0, viewportW - 20);
-            const availableH = Math.max(0, viewportH - headerH - bottomH - 20);
+            const availableH = Math.max(0, viewportH - headerH - bottomH - toggleH - 20);
 
             let tileSize = Math.floor(Math.min(base, availableW / currentGridWidth, availableH / currentGridHeight));
 
@@ -642,6 +657,7 @@
 
         // --- 상단 UI 접기/펼치기 (모바일 노치/상단바 터치 이슈 대응) ---
         const headerToggleBtn = document.getElementById('btn-header-toggle');
+        const toggleRowEl = document.getElementById('map-toggle-row');
         let headerCollapsed = false;
 
         function toggleHeaderUI(forceState) {
@@ -651,7 +667,8 @@
             headerEl.classList.toggle('collapsed', headerCollapsed);
 
             if (headerToggleBtn) {
-                headerToggleBtn.textContent = headerCollapsed ? '▾ 상단 메뉴 펼치기' : '▴ 상단 메뉴 접기';
+                headerToggleBtn.textContent = headerCollapsed ? '▾' : '▴';
+                headerToggleBtn.setAttribute('aria-label', headerCollapsed ? '상단 메뉴 펼치기' : '상단 메뉴 접기');
                 headerToggleBtn.setAttribute('aria-expanded', headerCollapsed ? 'false' : 'true');
             }
 
