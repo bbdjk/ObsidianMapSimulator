@@ -115,6 +115,34 @@
             line-height: 1;
         }
         #btn-header-toggle:hover{ background:#3a3a3a; }
+
+        /* --- 맵 위 오버레이 토글 버튼 --- */
+        #grid-wrap{ position: relative; width: 100%; display: flex; justify-content: center; }
+        #grid-container{ position: relative; }
+
+        #btn-header-toggle.map-toggle{
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 150;
+            border-radius: 12px;
+            min-width: 180px; /* 기존 대비 크게 */
+            padding: 12px 14px;
+            font-size: 0.95em;
+            background: rgba(43,43,43,0.92);
+            border: 1px solid rgba(255,255,255,0.25);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+        }
+
+        @media (max-width: 900px){
+            #btn-header-toggle.map-toggle{
+                min-width: 240px; /* 가로 길이 약 3배 체감 */
+                padding: 14px 16px;
+                font-size: 1.0em;
+            }
+            #btn-header-toggle.map-toggle:active{ transform: scale(0.99); }
+        }
         .ui-header.collapsed .controls{ display: none; }
         .ui-header.collapsed{ padding-bottom: 0; margin-bottom: 8px; }
 
@@ -418,8 +446,7 @@
         <div class="ui-header">
             <div class="titlebar">
                 <div class="title">Map Simulator</div>
-                <button id="btn-header-toggle" type="button" aria-expanded="true" onclick="toggleHeaderUI()">▴</button>
-            </div>
+</div>
             
             <div class="controls">
                 <div class="controls-row">
@@ -450,10 +477,11 @@
                 </div>
             </div>
         </div>
-
-        <div id="grid-container"></div>
-
-        <div class="bottom-ui">
+        <div id="grid-wrap">
+            <button id="btn-header-toggle" class="map-toggle" type="button" aria-expanded="true" onclick="toggleHeaderUI()">▴ 상단 메뉴 접기</button>
+            <div id="grid-container"></div>
+        </div>
+<div class="bottom-ui">
             <div id="sim-controls">
                 <button class="tick-btn" onclick="changeVal(-1)">-</button>
                 <span id="tick-display" style="font-weight:bold; color: #fff;">틱 갯수 : 3</span>
@@ -623,7 +651,7 @@
             headerEl.classList.toggle('collapsed', headerCollapsed);
 
             if (headerToggleBtn) {
-                headerToggleBtn.textContent = headerCollapsed ? '▾' : '▴';
+                headerToggleBtn.textContent = headerCollapsed ? '▾ 상단 메뉴 펼치기' : '▴ 상단 메뉴 접기';
                 headerToggleBtn.setAttribute('aria-expanded', headerCollapsed ? 'false' : 'true');
             }
 
