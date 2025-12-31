@@ -49,14 +49,15 @@
             flex-direction: row;
             justify-content: center;
             margin: 0;
-            padding: 20px;
+            --base-pad: 20px;
+            padding: var(--base-pad);
+            padding-top: calc(var(--base-pad) + env(safe-area-inset-top));
+            padding-bottom: calc(var(--base-pad) + env(safe-area-inset-bottom));
+            padding-left: calc(var(--base-pad) + env(safe-area-inset-left));
+            padding-right: calc(var(--base-pad) + env(safe-area-inset-right));
             user-select: none;
             height: 100vh;
             overflow: hidden;
-            /* 아이폰 하단 바 영역 침범 방지 */
-            padding-bottom: env(safe-area-inset-bottom);
-            padding-left: env(safe-area-inset-left);
-            padding-right: env(safe-area-inset-right);
         }
 
         .main-area {
@@ -79,15 +80,64 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding-bottom: 10px;
+            padding-bottom: 6px;
             border-bottom: 1px solid #333;
-            margin-bottom: 20px;
+            margin-bottom: 12px;
         }
+        /* --- 상단 안전영역 + 타이틀바(모바일 노치/상단바 대응) --- */
+        .ui-header .titlebar{
+            width: 100%;
+            max-width: 800px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 10px 8px;
+            padding-top: calc(10px + env(safe-area-inset-top));
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            margin-bottom: 8px;
+        }
+        .ui-header .titlebar .title{
+            font-weight: 800;
+            letter-spacing: 0.2px;
+            color: #e0e0e0;
+            opacity: 0.95;
+            user-select: none;
+        }
+        #btn-header-toggle{
+            padding: 6px 12px;
+            border-radius: 999px;
+            background: #2b2b2b;
+            border: 1px solid #555;
+            color: #fff;
+            cursor: pointer;
+            font-weight: 700;
+            line-height: 1;
+        }
+        #btn-header-toggle:hover{ background:#3a3a3a; }
+        .ui-header.collapsed .controls{ display: none; }
+        .ui-header.collapsed{ padding-bottom: 0; margin-bottom: 8px; }
+
 
         .controls { 
-            display: flex; gap: 6px; 
-            flex-wrap: wrap; justify-content: center; max-width: 800px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            justify-content: center;
             align-items: center;
+            width: 100%;
+            max-width: 900px;
+        }
+        .controls-row{
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+        }
+        .v-sep{
+            width:1px; height:20px; background:#555; margin:0 5px;
         }
 
         .bottom-ui {
@@ -308,7 +358,12 @@
                 flex-direction: column;
                 height: 100dvh;
                 overflow: hidden;
-                padding: 10px;
+                --base-pad: 10px;
+                padding: var(--base-pad);
+                padding-top: calc(var(--base-pad) + env(safe-area-inset-top));
+                padding-bottom: calc(var(--base-pad) + env(safe-area-inset-bottom));
+                padding-left: calc(var(--base-pad) + env(safe-area-inset-left));
+                padding-right: calc(var(--base-pad) + env(safe-area-inset-right));
             }
             .main-area {
                 width: 100%;
@@ -319,7 +374,11 @@
             }
 
             .ui-header { padding: 5px; }
-            .controls { max-width: 100%; flex-wrap: wrap; justify-content: center; gap: 6px; }
+            .ui-header .titlebar{ padding: 12px 8px; padding-top: calc(12px + env(safe-area-inset-top)); }
+            .ui-header.collapsed .titlebar{ margin-bottom: 0; }
+            .controls { max-width: 100%; }
+            .controls-row{ gap: 6px; }
+            .v-sep{ height: 18px; }
             button { padding: 7px 10px; font-size: 0.9em; }
             #map-selector { min-width: 130px; }
 
@@ -350,41 +409,44 @@
                 box-shadow: 0 -10px 20px rgba(0,0,0,0.6);
             }
         }
-            #sim-controls { width: 100%; justify-content: center; }
-            #info-panel { width: 100%; margin-bottom: 20px;}
-            
-            /* 에디터 패널: 모바일에서는 아래에서 위로 올라오게 */
-            #editor-panel {
-                top: auto; bottom: 0; left: 0; right: 0; width: 100%; height: 50vh;
-                border-left: none; border-top: 2px solid #444;
-            }
-        }
+
     </style>
 </head>
 <body>
 
     <div class="main-area">
         <div class="ui-header">
+            <div class="titlebar">
+                <div class="title">Map Simulator</div>
+                <button id="btn-header-toggle" type="button" aria-expanded="true" onclick="toggleHeaderUI()">▴</button>
+            </div>
+            
             <div class="controls">
-                <button id="btn-hotspot" onclick="loadMap('hotspot')">Hotspot</button>
-                <button id="btn-crossroads" onclick="loadMap('crossroads')">Crossroads</button>
-                <button id="btn-alley" onclick="loadMap('alley')">Alley</button>
-                
-                <div style="width:1px; height:20px; background:#555; margin:0 5px;"></div>
+                <div class="controls-row">
+                    <button id="btn-hotspot" onclick="loadMap('hotspot')">Hotspot</button>
+                    <button id="btn-crossroads" onclick="loadMap('crossroads')">Crossroads</button>
+                    <button id="btn-alley" onclick="loadMap('alley')">Alley</button>
 
-                <select id="map-selector" onchange="handleMapSelect()">
-                    <option value="" disabled selected>-- 저장된 맵 선택 --</option>
-                    <option value="__NEW__">&lt; 새 맵 추가 &gt;</option>
-                </select>
-                
-                <div style="width:1px; height:20px; background:#555; margin:0 5px;"></div>
+                    <div class="v-sep" aria-hidden="true"></div>
 
-                <button id="btn-editor" onclick="toggleEditor()">🛠 맵 에디터</button>
-                <button id="btn-area1" class="btn-area" onclick="toggleArea1()">Area1</button>
-                <button id="btn-area2" class="btn-area" onclick="toggleArea2()">Area2</button>
-                <button id="btn-sim" onclick="toggleSimulator()">🎲 시뮬레이터</button>
-                <button id="btn-los" onclick="toggleLOS()">👁 LOS</button>
-                <button id="btn-range" onclick="toggleRangeMode()">📏 사거리범위</button>
+                    <button id="btn-area1" class="btn-area" onclick="toggleArea1()">Area1</button>
+                    <button id="btn-area2" class="btn-area" onclick="toggleArea2()">Area2</button>
+                </div>
+
+                <div class="controls-row">
+                    <button id="btn-editor" onclick="toggleEditor()">🛠 맵 에디터</button>
+
+                    <select id="map-selector" onchange="handleMapSelect()">
+                        <option value="" disabled selected>-- 저장된 맵 선택 --</option>
+                        <option value="__NEW__">&lt; 새 맵 추가 &gt;</option>
+                    </select>
+                </div>
+
+                <div class="controls-row">
+                    <button id="btn-los" onclick="toggleLOS()">👁 LOS</button>
+                    <button id="btn-range" onclick="toggleRangeMode()">📏 사거리범위</button>
+                    <button id="btn-sim" onclick="toggleSimulator()">🎲 시뮬레이터</button>
+                </div>
             </div>
         </div>
 
@@ -548,6 +610,26 @@
             container.style.gridTemplateColumns = `repeat(${currentGridWidth}, var(--tile-size))`;
             container.style.gridTemplateRows = `repeat(${currentGridHeight}, var(--tile-size))`;
         }
+
+        // --- 상단 UI 접기/펼치기 (모바일 노치/상단바 터치 이슈 대응) ---
+        const headerToggleBtn = document.getElementById('btn-header-toggle');
+        let headerCollapsed = false;
+
+        function toggleHeaderUI(forceState) {
+            headerCollapsed = (typeof forceState === 'boolean') ? forceState : !headerCollapsed;
+            if (!headerEl) return;
+
+            headerEl.classList.toggle('collapsed', headerCollapsed);
+
+            if (headerToggleBtn) {
+                headerToggleBtn.textContent = headerCollapsed ? '▾' : '▴';
+                headerToggleBtn.setAttribute('aria-expanded', headerCollapsed ? 'false' : 'true');
+            }
+
+            // 높이/타일 크기 재계산
+            setTimeout(applyResponsiveLayout, 0);
+        }
+
 
         window.addEventListener('resize', () => applyResponsiveLayout(), { passive: true });
         window.addEventListener('orientationchange', () => setTimeout(applyResponsiveLayout, 60), { passive: true });
