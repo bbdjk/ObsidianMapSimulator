@@ -404,8 +404,9 @@ font-family: 'Segoe UI', sans-serif;
 
         
 
-        /* --- 사거리(사거리범위) 방향 선택 오버레이 --- */
-        #range-dir-overlay{
+        /* --- 방향 선택 오버레이(사거리/시뮬레이터) --- */
+        #range-dir-overlay,
+        #sim-dir-overlay{
             position: absolute;
             left: 0; top: 0;
             width: 100%; height: 100%;
@@ -413,7 +414,8 @@ font-family: 'Segoe UI', sans-serif;
             pointer-events: none;
             display: none;
         }
-        #range-dir-overlay.visible{ display:block; }
+        #range-dir-overlay.visible,
+        #sim-dir-overlay.visible{ display:block; }
         
 .dir-btn{
     position: absolute;
@@ -637,6 +639,7 @@ font-family: 'Segoe UI', sans-serif;
         </div>
             <div id="grid-container"></div>
             <div id="range-dir-overlay" aria-label="사거리 방향 선택"></div>
+            <div id="sim-dir-overlay" aria-label="시뮬레이터 방향 선택"></div>
         </div>
 
         <div id="unit-panel" aria-label="기체 추가 도구">
@@ -791,6 +794,12 @@ font-family: 'Segoe UI', sans-serif;
         const rangeDirOverlay = document.getElementById('range-dir-overlay');
         const rangeDirButtons = {};
 
+        // --- 시뮬레이터 모드: 마지막 틱 방향 선택(옵션) ---
+        let simDir = null; // null | 'UP' | 'DOWN' | 'LEFT' | 'RIGHT'
+        let isSimDirOverlayVisible = false;
+        const simDirOverlay = document.getElementById('sim-dir-overlay');
+        const simDirButtons = {};
+
         
 function buildRangeDirOverlay() {
     if (!rangeDirOverlay) return;
@@ -826,6 +835,107 @@ function buildRangeDirOverlay() {
     rangeDirOverlay.addEventListener('pointerdown', (e) => { e.stopPropagation(); });
 }
 
+
+// --- 시뮬레이터 방향 오버레이 ---
+function buildSimDirOverlay() {
+    if (!simDirOverlay) return;
+    simDirOverlay.innerHTML = '';
+
+    function mkBtn(dir, label) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'dir-btn';
+        b.dataset.dir = dir;
+        b.setAttribute('aria-label', '시뮬레이터 방향 선택: ' + dir);
+        b.textContent = label;
+
+        b.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setSimDirection(dir);
+        });
+        return b;
+    }
+
+    simDirButtons.UP = mkBtn('UP', '▲');
+    simDirButtons.DOWN = mkBtn('DOWN', '▼');
+    simDirButtons.LEFT = mkBtn('LEFT', '◀');
+    simDirButtons.RIGHT = mkBtn('RIGHT', '▶');
+
+    simDirOverlay.appendChild(simDirButtons.UP);
+    simDirOverlay.appendChild(simDirButtons.DOWN);
+    simDirOverlay.appendChild(simDirButtons.LEFT);
+    simDirOverlay.appendChild(simDirButtons.RIGHT);
+
+    simDirOverlay.addEventListener('pointerdown', (e) => { e.stopPropagation(); });
+}
+
+function hideSimDirOverlay() {
+    isSimDirOverlayVisible = false;
+    if (!simDirOverlay) return;
+    simDirOverlay.style.display = 'none';
+    simDirOverlay.classList.remove('visible');
+}
+
+function showSimDirOverlayAtTile(tx, ty) {
+    if (!simDirOverlay) return;
+    if (!Object.keys(simDirButtons).length) buildSimDirOverlay();
+
+    const wrapEl = document.getElementById('grid-wrap');
+    if (!wrapEl) return;
+
+    const wrapRect = wrapEl.getBoundingClientRect();
+
+    const neigh = {
+        UP:    { x: tx,     y: ty - 1 },
+        DOWN:  { x: tx,     y: ty + 1 },
+        LEFT:  { x: tx - 1, y: ty     },
+        RIGHT: { x: tx + 1, y: ty     },
+    };
+
+    for (const dir of ['UP','DOWN','LEFT','RIGHT']) {
+        const b = simDirButtons[dir];
+        if (!b) continue;
+
+        const nx = neigh[dir].x;
+        const ny = neigh[dir].y;
+
+        if (nx < 0 || ny < 0 || nx >= currentGridWidth || ny >= currentGridHeight) {
+            b.style.display = 'none';
+            continue;
+        }
+
+        const nIdx = ny * currentGridWidth + nx;
+        const nTileEl = tiles[nIdx];
+        if (!nTileEl) { b.style.display = 'none'; continue; }
+
+        const r = nTileEl.getBoundingClientRect();
+
+        b.style.display = 'flex';
+        b.style.left = (r.left - wrapRect.left) + 'px';
+        b.style.top  = (r.top  - wrapRect.top) + 'px';
+        b.style.width  = r.width + 'px';
+        b.style.height = r.height + 'px';
+
+        b.classList.toggle('selected', simDir === dir);
+    }
+
+    simDirOverlay.style.display = 'block';
+    simDirOverlay.classList.add('visible');
+    isSimDirOverlayVisible = true;
+}
+
+function setSimDirection(dir) {
+    // 같은 방향을 다시 누르면 해제(= 전체 시야)
+    simDir = (simDir === dir) ? null : dir;
+
+    // 마지막 틱 위치에서 계속 방향 선택할 수 있게 오버레이 유지 + 선택 상태 갱신
+    const o = getCurrentOrigin?.();
+    if (o && isSimMode && simSegments.length === maxTicks) {
+        showSimDirOverlayAtTile(o.x, o.y);
+    }
+    updateLOS();
+}
 
         function hideRangeDirOverlay() {
             isRangeDirOverlayVisible = false;
@@ -946,6 +1056,12 @@ function showRangeDirOverlayAtTile(tx, ty) {
             // gridTemplate은 createGrid가 호출되지 않아도 갱신될 수 있도록 여기서도 업데이트
             container.style.gridTemplateColumns = `repeat(${currentGridWidth}, var(--tile-size))`;
             container.style.gridTemplateRows = `repeat(${currentGridHeight}, var(--tile-size))`;
+
+            // 방향 오버레이 위치 갱신(시뮬레이터 마지막 틱)
+            if (isSimMode && startPoint && simSegments.length === maxTicks) {
+                const o = getCurrentOrigin();
+                if (o) showSimDirOverlayAtTile(o.x, o.y);
+            }
         }
 
         // --- 상단 UI 접기/펼치기 (모바일 노치/상단바 터치 이슈 대응) ---
@@ -1225,6 +1341,9 @@ function showRangeDirOverlayAtTile(tx, ty) {
             if (isRangeMode && origin) {
                 calculateRangeArea(origin);
                 calculateLOS(origin, rangeDir); 
+            } else if (isSimMode && origin && startPoint && simSegments.length === maxTicks) {
+                // 시뮬레이터: 마지막 틱에서 방향 선택(옵션) LOS 표시
+                calculateLOS(origin, simDir);
             } else if (isLOSActive && origin) {
                 calculateLOS(origin);
             }
@@ -1690,6 +1809,7 @@ function getCurrentOrigin() {
                 tickDisplay.textContent = `틱 갯수 : ${maxTicks}`; 
             } else {
                 btn.classList.remove('active'); simControls.classList.remove('visible'); infoPanel.classList.remove('sim-mode');
+                simDir = null; hideSimDirOverlay();
                 resetMeasureState(); 
             }
             updateLOS();
@@ -1701,6 +1821,8 @@ function getCurrentOrigin() {
             startPoint = null;
             simSegments = [];
             lockedAxis = null; 
+            simDir = null;
+            hideSimDirOverlay();
             clearVisuals();
             rangeText.textContent = "시뮬레이터 대기";
             statusText.textContent = `틱 1 이동을 시작하세요 (총 ${maxTicks}틱)`;
@@ -1730,6 +1852,7 @@ function getCurrentOrigin() {
                 const idx = y * currentGridWidth + x;
                 if(tiles[idx]) tiles[idx].classList.add('start');
                 statusText.textContent = `틱 1 목표를 선택하세요`;
+                simDir = null; hideSimDirOverlay();
                 updateLOS();
                 return;
             }
@@ -1752,7 +1875,17 @@ function getCurrentOrigin() {
                     statusText.textContent = `틱 ${simSegments.length + 1} 목표를 선택하세요`;
                 }
                 
-                handleSimHover(x, y); 
+                handleSimHover(x, y);
+
+                // 마지막 틱이면 방향 오버레이 표시(기본: 전체 시야, 선택 시 방향 시야)
+                if (simSegments.length === maxTicks) {
+                    const o = getCurrentOrigin();
+                    if (o) showSimDirOverlayAtTile(o.x, o.y);
+                } else {
+                    simDir = null;
+                    hideSimDirOverlay();
+                }
+
                 updateLOS(); 
                 return;
             } 
