@@ -387,7 +387,16 @@ font-family: 'Segoe UI', sans-serif;
         }
         
 
-        /* ✅ 기체 블럭은 LOS/사거리 단독일 때 색 유지 (교집합일 때만 별도 하이라이트) */
+        
+
+        /* --- 기체 배치 프리뷰(드래그 중) --- */
+        .subcell.unit-preview{
+            background-color: rgba(255, 79, 216, 0.18);
+            box-shadow:
+                inset 0 0 0 2px rgba(255, 255, 255, 0.75),
+                0 0 10px rgba(255, 79, 216, 0.45);
+        }
+/* ✅ 기체 블럭은 LOS/사거리 단독일 때 색 유지 (교집합일 때만 별도 하이라이트) */
         .subcell.unit-block.sub-visible,
         .subcell.unit-block.in-range,
         .subcell.unit-block.sub-visible.in-range {
@@ -788,6 +797,10 @@ font-family: 'Segoe UI', sans-serif;
         let unitCellToBlock = new Map(); // key 'gx,gy' -> blockId
         let nextUnitBlockId = 1;
 
+        // --- 기체 드래그 배치(프리뷰) ---
+        let isUnitDragging = false;
+        let unitPreviewCells = null; // [{gx,gy}] (유효할 때만)
+
         // --- 사거리(사거리범위) 모드: 방향 선택(옵션) ---
         let rangeDir = null; // null | 'UP' | 'DOWN' | 'LEFT' | 'RIGHT'
         let isRangeDirOverlayVisible = false;
@@ -1120,7 +1133,14 @@ function showRangeDirOverlayAtTile(tx, ty) {
 
             // 기체 배치/제거 모드: 다른 상호작용보다 우선
             if (unitTool) {
-                if (isDownAction || isPointerDown) tryPlaceUnitAt(hit);
+                if (unitTool === 'ERASE') {
+                    // 제거는 기존처럼 클릭/드래그(페인팅) 방식
+                    if (isDownAction || isPointerDown) tryPlaceUnitAt(hit);
+                } else {
+                    // 추가는 '클릭 후 드래그 → 놓기'로 최종 위치 확정
+                    if (isDownAction) beginUnitDrag(hit);
+                    else if (isPointerDown && isUnitDragging) updateUnitDrag(hit);
+                }
                 return;
             }
 
@@ -1162,8 +1182,16 @@ function showRangeDirOverlayAtTile(tx, ty) {
             processPointerAt(e.clientX, e.clientY, false);
         }, { passive: false });
 
-        window.addEventListener('pointerup', () => { isPointerDown = false; lastPointerKey = null; }, { passive: true });
-        window.addEventListener('pointercancel', () => { isPointerDown = false; lastPointerKey = null; }, { passive: true });
+        window.addEventListener('pointerup', () => {
+            // 기체 드래그 배치 확정
+            if (isUnitDragging) commitUnitDrag();
+            isPointerDown = false; lastPointerKey = null;
+        }, { passive: true });
+        window.addEventListener('pointercancel', () => {
+            // 취소 시 프리뷰만 정리
+            if (isUnitDragging) cancelUnitDrag();
+            isPointerDown = false; lastPointerKey = null;
+        }, { passive: true });
 
         let startPoint = null;
         let isLocked = false;
@@ -1537,7 +1565,9 @@ function showRangeDirOverlayAtTile(tx, ty) {
                     }
                 }
             }
-            return t0 <= t1;
+            const EPS = 1e-9;
+            // 교차 구간 길이가 0(꼭지점·한점 접촉)이면 "가리지 않음" 처리
+            return (t0 < t1 - EPS);
         }
 
         // --- Area 로직 ---
@@ -1584,6 +1614,7 @@ function showRangeDirOverlayAtTile(tx, ty) {
             if (unitPanel) unitPanel.classList.toggle('visible', isUnitPanelVisible);
             if (btnUnits) btnUnits.classList.toggle('active', isUnitPanelVisible);
             if (!isUnitPanelVisible) {
+                cancelUnitDrag();
                 unitTool = null;
                 refreshUnitToolButtons();
             }
@@ -1607,13 +1638,14 @@ function showRangeDirOverlayAtTile(tx, ty) {
         function selectUnitTool(tool) {
             if (!isUnitPanelVisible) setUnitPanelVisible(true);
             unitTool = (unitTool === tool) ? null : tool;
+            cancelUnitDrag();
             refreshUnitToolButtons();
 
             if (unitTool) {
                 detailText.textContent = '기체 배치 모드';
                 statusText.textContent = (unitTool === 'ERASE')
                     ? '기체 제거: 기체 블럭을 클릭/드래그하여 삭제'
-                    : '기체 추가: 배치할 위치를 클릭/드래그';
+                    : '기체 추가: 클릭 후 드래그로 이동하여 놓으면 배치됩니다';
             } else {
                 // 기존 모드 상태에 맞춰 UI가 갱신되도록 처리
                 if (isSimMode) {
@@ -1742,6 +1774,87 @@ function showRangeDirOverlayAtTile(tx, ty) {
             }
             addUnitBlock(unitTool, cells);
         }
+
+        function cancelUnitDrag() {
+            isUnitDragging = false;
+            clearUnitPreview();
+        }
+
+        function clearUnitPreview() {
+            if (!unitPreviewCells) return;
+            unitPreviewCells.forEach(c => {
+                const el = getSubcellEl(c.gx, c.gy);
+                if (el) el.classList.remove('unit-preview');
+            });
+            unitPreviewCells = null;
+        }
+
+        function setUnitPreview(cells) {
+            clearUnitPreview();
+            unitPreviewCells = cells;
+            cells.forEach(c => {
+                const el = getSubcellEl(c.gx, c.gy);
+                if (el) el.classList.add('unit-preview');
+            });
+        }
+
+        function computeUnitCellsAtHit(tool, hit) {
+            if (!tool || tool === 'ERASE') return null;
+
+            const { gx, gy } = getGlobalSubcellFromHit(hit);
+
+            let anchorGx = gx;
+            let anchorGy = gy;
+            let w = 1, h = 1;
+
+            if (tool === 'LARGE') {
+                anchorGx = hit.x * 3;
+                anchorGy = hit.y * 3;
+                w = 3; h = 3;
+            } else if (tool === 'DRONE') {
+                w = 2; h = 2;
+            } else if (tool === 'LOW') {
+                w = 1; h = 1;
+            }
+
+            const maxGX = currentGridWidth * 3;
+            const maxGY = currentGridHeight * 3;
+            if (anchorGx < 0 || anchorGy < 0 || (anchorGx + w) > maxGX || (anchorGy + h) > maxGY) return null;
+
+            const cells = [];
+            for (let yy = 0; yy < h; yy++) {
+                for (let xx = 0; xx < w; xx++) {
+                    const cgx = anchorGx + xx;
+                    const cgy = anchorGy + yy;
+                    if (unitCellToBlock.has(`${cgx},${cgy}`)) return null; // 겹치면 불가
+                    const el = getSubcellEl(cgx, cgy);
+                    if (el && el.classList.contains('obs-full')) return null; // 장애물 위는 불가
+                    cells.push({ gx: cgx, gy: cgy });
+                }
+            }
+            return cells;
+        }
+
+        function beginUnitDrag(hit) {
+            if (!unitTool || unitTool === 'ERASE') return;
+            isUnitDragging = true;
+            updateUnitDrag(hit);
+        }
+
+        function updateUnitDrag(hit) {
+            if (!isUnitDragging) return;
+            const cells = computeUnitCellsAtHit(unitTool, hit);
+            if (cells) setUnitPreview(cells);
+            else clearUnitPreview();
+        }
+
+        function commitUnitDrag() {
+            if (!isUnitDragging) return;
+            const cells = unitPreviewCells ? unitPreviewCells.map(c => ({ gx: c.gx, gy: c.gy })) : null;
+            cancelUnitDrag();
+            if (cells && cells.length) addUnitBlock(unitTool, cells);
+        }
+
 
         function renderAllUnitBlocks() {
             const maxGX = currentGridWidth * 3;
@@ -2016,22 +2129,107 @@ function getCurrentOrigin() {
         function applyGridSize() {
             const newW = parseInt(widthInput.value);
             const newH = parseInt(heightInput.value);
-            if(isNaN(newW) || newW < 5 || newW > 40 || isNaN(newH) || newH < 5 || newH > 40) {
+            if (isNaN(newW) || newW < 5 || newW > 40 || isNaN(newH) || newH < 5 || newH > 40) {
                 alert("5 ~ 40 사이의 값을 입력하세요."); return;
             }
+
+            const oldW = currentGridWidth;
+            const oldH = currentGridHeight;
+
+            // 현재 화면(기존 그리드)에서 지형/장애물 상태를 읽어둠
             const currentData = getMapDataFromScreen();
+
+            // 새 그리드에서 '중앙 기준'으로 기존 배치를 이동시키기 위한 오프셋
+            const offX = Math.floor((newW - oldW) / 2);
+            const offY = Math.floor((newH - oldH) / 2);
+
+            // --- 좌표 보정 헬퍼 ---
+            function shiftTilePoint(p) {
+                if (!p) return null;
+                const nx = p.x + offX;
+                const ny = p.y + offY;
+                if (nx < 0 || ny < 0 || nx >= newW || ny >= newH) return null;
+                return { x: nx, y: ny };
+            }
+
+            // 시작점/시뮬레이터 경로도 중앙 기준으로 같이 이동
+            startPoint = shiftTilePoint(startPoint);
+
+            if (Array.isArray(simSegments) && simSegments.length > 0) {
+                const shiftedSegs = [];
+                let ok = true;
+                for (const seg of simSegments) {
+                    const s = shiftTilePoint(seg.start);
+                    const e = shiftTilePoint(seg.end);
+                    if (!s || !e) { ok = false; break; }
+                    shiftedSegs.push({ ...seg, start: s, end: e });
+                }
+                if (ok) {
+                    simSegments = shiftedSegs;
+                } else {
+                    // 잘려 나가면 안전하게 경로/락 해제
+                    simSegments = [];
+                    isLocked = false;
+                    lockedAxis = null;
+                }
+            }
+
+            // 방향 오버레이는 리사이즈 후 다시 띄우는 방식으로(좌표 꼬임 방지)
+            rangeDir = null;
+            simDir = null;
+            hideRangeDirOverlay && hideRangeDirOverlay();
+            hideSimDirOverlay && hideSimDirOverlay();
+
+            // 기체 블럭(서브셀 좌표)도 중앙 기준으로 이동
+            if (Array.isArray(unitBlocks) && unitBlocks.length > 0) {
+                const newBlocks = [];
+                const newMap = new Map();
+                const maxGX = newW * 3;
+                const maxGY = newH * 3;
+
+                for (const b of unitBlocks) {
+                    const newCells = [];
+                    let ok = true;
+                    for (const c of b.cells) {
+                        const ngx = c.gx + offX * 3;
+                        const ngy = c.gy + offY * 3;
+                        if (ngx < 0 || ngy < 0 || ngx >= maxGX || ngy >= maxGY) { ok = false; break; }
+                        newCells.push({ gx: ngx, gy: ngy });
+                    }
+                    if (!ok) continue; // 잘리는 블럭은 제거(부분 클립 방지)
+
+                    const nb = { ...b, cells: newCells };
+                    newBlocks.push(nb);
+                    newCells.forEach(c => newMap.set(`${c.gx},${c.gy}`, nb.id));
+                }
+                unitBlocks = newBlocks;
+                unitCellToBlock = newMap;
+            } else {
+                unitBlocks = [];
+                unitCellToBlock = new Map();
+            }
+
+            // 새 크기로 그리드 재생성
             currentGridWidth = newW;
             currentGridHeight = newH;
             createGrid();
+
+            // 지형/장애물 상태를 '중앙 기준'으로 재배치하여 렌더
             currentData.forEach(data => {
-                if(data.x < currentGridWidth && data.y < currentGridHeight) {
-                    const index = data.y * currentGridWidth + data.x;
-                    renderTileObject(tiles[index], data);
+                const nx = data.x + offX;
+                const ny = data.y + offY;
+                if (nx >= 0 && ny >= 0 && nx < currentGridWidth && ny < currentGridHeight) {
+                    const index = ny * currentGridWidth + nx;
+                    const shifted = { ...data, x: nx, y: ny };
+                    renderTileObject(tiles[index], shifted);
                 }
             });
+
+            // 모드별 계산 갱신
+            updateLOS();
         }
 
-        function handleEditorClick(e, x, y) {
+                function handleEditorClick(e, x, y) {
             const index = y * currentGridWidth + x;
             const tile = tiles[index];
             const target = e.target;
