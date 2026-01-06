@@ -1398,49 +1398,46 @@ function showRangeDirOverlayAtTile(tx, ty) {
         function calculateLOS(origin, dir = null) {
             const tileX = origin.x * 3;
             const tileY = origin.y * 3;
-            const inset = 0.01;
-            const ocx = tileX + 1.5;
+                        const ocx = tileX + 1.5;
             const ocy = tileY + 1.5;
 
-            // 기본(방향 미선택): 중앙 + 4꼭지점
-            // 방향 선택 시: 선택된 방향의 '정면' 꼭지점/엣지에서만 시야가 시작
+            // LOS ray origins
+            // - 방향 미선택: 중앙 + 4꼭지점(기존과 동일)
+            // - 방향 선택: 중앙 + 선택된 '정면(앞면)'에 여러 샘플 포인트를 추가
+            //   (정면 3포인트만 쓰면 특정 배치에서 과도하게 시야가 줄어드는 케이스가 있어 보정)
             let originPoints;
+            const faceInset = 0.05;
+
             if (!dir) {
                 originPoints = [
                     {x: ocx, y: ocy},
-                    {x: tileX + inset, y: tileY + inset},
-                    {x: tileX + 3 - inset, y: tileY + inset},
-                    {x: tileX + inset, y: tileY + 3 - inset},
-                    {x: tileX + 3 - inset, y: tileY + 3 - inset}
-                ];
-            } else if (dir === 'UP') {
-                originPoints = [
-                    {x: tileX + inset, y: tileY + inset},
-                    {x: tileX + 3 - inset, y: tileY + inset},
-                    {x: ocx, y: tileY + inset}
-                ];
-            } else if (dir === 'DOWN') {
-                originPoints = [
-                    {x: tileX + inset, y: tileY + 3 - inset},
-                    {x: tileX + 3 - inset, y: tileY + 3 - inset},
-                    {x: ocx, y: tileY + 3 - inset}
-                ];
-            } else if (dir === 'LEFT') {
-                originPoints = [
-                    {x: tileX + inset, y: tileY + inset},
-                    {x: tileX + inset, y: tileY + 3 - inset},
-                    {x: tileX + inset, y: ocy}
-                ];
-            } else if (dir === 'RIGHT') {
-                originPoints = [
-                    {x: tileX + 3 - inset, y: tileY + inset},
-                    {x: tileX + 3 - inset, y: tileY + 3 - inset},
-                    {x: tileX + 3 - inset, y: ocy}
+                    {x: tileX + faceInset, y: tileY + faceInset},
+                    {x: tileX + 3 - faceInset, y: tileY + faceInset},
+                    {x: tileX + faceInset, y: tileY + 3 - faceInset},
+                    {x: tileX + 3 - faceInset, y: tileY + 3 - faceInset}
                 ];
             } else {
-                originPoints = [
-                    {x: ocx, y: ocy}
-                ];
+                originPoints = [{x: ocx, y: ocy}];
+
+                if (dir === 'UP' || dir === 'DOWN') {
+                    const fy = (dir === 'UP') ? (tileY + faceInset) : (tileY + 3 - faceInset);
+                    originPoints.push(
+                        {x: tileX + faceInset, y: fy},
+                        {x: tileX + 0.75, y: fy},
+                        {x: ocx, y: fy},
+                        {x: tileX + 2.25, y: fy},
+                        {x: tileX + 3 - faceInset, y: fy}
+                    );
+                } else if (dir === 'LEFT' || dir === 'RIGHT') {
+                    const fx = (dir === 'LEFT') ? (tileX + faceInset) : (tileX + 3 - faceInset);
+                    originPoints.push(
+                        {x: fx, y: tileY + faceInset},
+                        {x: fx, y: tileY + 0.75},
+                        {x: fx, y: ocy},
+                        {x: fx, y: tileY + 2.25},
+                        {x: fx, y: tileY + 3 - faceInset}
+                    );
+                }
             }
 
             const blockers = [];
@@ -1474,19 +1471,21 @@ function showRangeDirOverlayAtTile(tx, ty) {
                     
                     if (!tile || tile.children[subIdx + 1].classList.contains('obs-full')) continue;
 
-                    const tInset = 0.1;
+                    const tInset = 0.05; // subcell coords inset to avoid exact-corner ties
+                    const baseX = gx;
+                    const baseY = gy;
                     const targetPoints = [
-                        {x: gx + 0.5, y: gy + 0.5},
-                        {x: gx + tInset, y: gy + tInset},
-                        {x: gx + 1-tInset, y: gy + tInset},
-                        {x: gx + tInset, y: gy + 1-tInset},
-                        {x: gx + 1-tInset, y: gy + 1-tInset}
+                        {x: baseX + 0.5, y: baseY + 0.5},
+                        {x: baseX + tInset, y: baseY + tInset},
+                        {x: baseX + 1 - tInset, y: baseY + tInset},
+                        {x: baseX + tInset, y: baseY + 1 - tInset},
+                        {x: baseX + 1 - tInset, y: baseY + 1 - tInset}
                     ];
 
                     // 방향 선택 시: 유닛 앞면 기준 좌우 45도(=총 90도 콘) 안쪽만 시야 체크
                     if (dir) {
-                        const tcx = gx + 0.5;
-                        const tcy = gy + 0.5;
+                        const tcx = baseX + 0.5; // subcell center
+                        const tcy = baseY + 0.5; // subcell center
                         const dx = tcx - ocx;
                         const dy = tcy - ocy;
                         const eps = 0.001;
@@ -1544,31 +1543,43 @@ function showRangeDirOverlayAtTile(tx, ty) {
 
             const dx = x2 - x1;
             const dy = y2 - y1;
-            
+
             let t0 = 0.0;
             let t1 = 1.0;
 
             const p = [-dx, dx, -dy, dy];
             const q = [x1 - minX, maxX - x1, y1 - minY, maxY - y1];
 
-            for(let i=0; i<4; i++) {
-                if(p[i] === 0) {
-                    if(q[i] < 0) return false; 
+            for (let i = 0; i < 4; i++) {
+                if (p[i] === 0) {
+                    if (q[i] < 0) return false;
                 } else {
                     const t = q[i] / p[i];
-                    if(p[i] < 0) {
-                        if(t > t1) return false;
-                        if(t > t0) t0 = t;
+                    if (p[i] < 0) {
+                        if (t > t1) return false;
+                        if (t > t0) t0 = t;
                     } else {
-                        if(t < t0) return false;
-                        if(t < t1) t1 = t;
+                        if (t < t0) return false;
+                        if (t < t1) t1 = t;
                     }
                 }
             }
+
             const EPS = 1e-9;
-            // 교차 구간 길이가 0(꼭지점·한점 접촉)이면 "가리지 않음" 처리
-            return (t0 < t1 - EPS);
+            const seg = t1 - t0;
+
+            // 1) 실제로 박스 내부를 통과/겹치는 구간이 있으면 차단
+            if (seg > EPS) return true;
+
+            // 2) 한 점(꼭지점/변)만 '툭' 닿는 경우:
+            //    - 레이의 시작점(t≈0) 또는 도착점(t≈1)에서의 접촉은 "가리지 않음"
+            //      (사용자 규칙: 꼭지점에 닿기만 하면 시야가 체크되는 것으로 취급)
+            //    - 그 외(구간 중간에서의 한 점 접촉)는 벽 사이 '틈' 누수 방지를 위해 차단
+            const t = (t0 + t1) * 0.5;
+            if (t <= EPS || t >= 1.0 - EPS) return false;
+            return true;
         }
+
 
         // --- Area 로직 ---
         function toggleArea1() {
