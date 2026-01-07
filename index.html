@@ -1395,16 +1395,14 @@ function showRangeDirOverlayAtTile(tx, ty) {
             }
         }
 
+        // 1. 시야 계산 함수 (핀홀 수정 + 문법 오류 방지)
         function calculateLOS(origin, dir = null) {
             const tileX = origin.x * 3;
             const tileY = origin.y * 3;
-                        const ocx = tileX + 1.5;
+            const ocx = tileX + 1.5;
             const ocy = tileY + 1.5;
 
-            // LOS ray origins
-            // - 방향 미선택: 중앙 + 4꼭지점(기존과 동일)
-            // - 방향 선택: 중앙 + 선택된 '정면(앞면)'에 여러 샘플 포인트를 추가
-            //   (정면 3포인트만 쓰면 특정 배치에서 과도하게 시야가 줄어드는 케이스가 있어 보정)
+            // 시야 시작점 설정 (기존 로직 유지)
             let originPoints;
             const faceInset = 0.05;
 
@@ -1418,49 +1416,82 @@ function showRangeDirOverlayAtTile(tx, ty) {
                 ];
             } else {
                 originPoints = [{x: ocx, y: ocy}];
-
                 if (dir === 'UP' || dir === 'DOWN') {
                     const fy = (dir === 'UP') ? (tileY + faceInset) : (tileY + 3 - faceInset);
                     originPoints.push(
-                        {x: tileX + faceInset, y: fy},
-                        {x: tileX + 0.75, y: fy},
-                        {x: ocx, y: fy},
-                        {x: tileX + 2.25, y: fy},
-                        {x: tileX + 3 - faceInset, y: fy}
+                        {x: tileX + faceInset, y: fy}, {x: tileX + 0.75, y: fy}, {x: ocx, y: fy}, {x: tileX + 2.25, y: fy}, {x: tileX + 3 - faceInset, y: fy}
                     );
                 } else if (dir === 'LEFT' || dir === 'RIGHT') {
                     const fx = (dir === 'LEFT') ? (tileX + faceInset) : (tileX + 3 - faceInset);
                     originPoints.push(
-                        {x: fx, y: tileY + faceInset},
-                        {x: fx, y: tileY + 0.75},
-                        {x: fx, y: ocy},
-                        {x: fx, y: tileY + 2.25},
-                        {x: fx, y: tileY + 3 - faceInset}
+                        {x: fx, y: tileY + faceInset}, {x: fx, y: tileY + 0.75}, {x: fx, y: ocy}, {x: fx, y: tileY + 2.25}, {x: fx, y: tileY + 3 - faceInset}
                     );
                 }
+                // 앞면 모서리 정확도 보정
+                if (dir === 'UP') originPoints.push({x: tileX, y: tileY}, {x: tileX + 3, y: tileY});
+                else if (dir === 'DOWN') originPoints.push({x: tileX, y: tileY + 3}, {x: tileX + 3, y: tileY + 3});
+                else if (dir === 'LEFT') originPoints.push({x: tileX, y: tileY}, {x: tileX, y: tileY + 3});
+                else if (dir === 'RIGHT') originPoints.push({x: tileX + 3, y: tileY}, {x: tileX + 3, y: tileY + 3});
             }
 
+            // 방향 필터링용 경계값
+            const xL0 = tileX, xR0 = tileX + 3, yT0 = tileY, yB0 = tileY + 3;
+
             const blockers = [];
+            const blockedSet = new Set(); // 빠른 검색용
+
+            // 전체 장애물 수집
             for(let y=0; y<currentGridHeight; y++) {
                 for(let x=0; x<currentGridWidth; x++) {
                     const idx = y * currentGridWidth + x;
                     const tile = tiles[idx];
                     for(let i=0; i<9; i++) {
                         if(tile.children[i+1].classList.contains('obs-full')) {
+                            const bx = x * 3 + (i % 3);
+                            const by = y * 3 + Math.floor(i / 3);
+                            
                             blockers.push({
-                                x: x * 3 + (i % 3),
-                                y: y * 3 + Math.floor(i / 3),
-                                w: 1, h: 1,
+                                x: bx, y: by, w: 1, h: 1, // 기본 크기 1x1
                                 tx: x, ty: y 
                             });
+                            blockedSet.add(`${bx},${by}`);
                         }
                     }
                 }
             }
 
+            // [핵심 수정] 대각선 틈새(Pinhole) 막기
+            // 대각선으로만 막힌 구간(▚, ▞)의 교차점에 미세한 가상 벽 추가
             const gridW = currentGridWidth * 3;
             const gridH = currentGridHeight * 3;
+            const gapSize = 0.02; // 아주 작은 벽
+            const gapOffset = gapSize / 2;
 
+            for (let gy = 0; gy < gridH - 1; gy++) {
+                for (let gx = 0; gx < gridW - 1; gx++) {
+                    const tl = blockedSet.has(`${gx},${gy}`);
+                    const tr = blockedSet.has(`${gx+1},${gy}`);
+                    const bl = blockedSet.has(`${gx},${gy+1}`);
+                    const br = blockedSet.has(`${gx+1},${gy+1}`);
+
+                    // 대각선 교차 패턴 체크
+                    const isDiag1 = tl && br && !tr && !bl;
+                    const isDiag2 = tr && bl && !tl && !br;
+
+                    if (isDiag1 || isDiag2) {
+                        // 교차점 정중앙에 미세 벽 추가
+                        blockers.push({
+                            x: (gx + 1) - gapOffset,
+                            y: (gy + 1) - gapOffset,
+                            w: gapSize, 
+                            h: gapSize,
+                            isGapStopper: true
+                        });
+                    }
+                }
+            }
+
+            // Raycasting 수행
             for (let gy = 0; gy < gridH; gy++) {
                 for (let gx = 0; gx < gridW; gx++) {
                     const tx = Math.floor(gx / 3);
@@ -1471,38 +1502,42 @@ function showRangeDirOverlayAtTile(tx, ty) {
                     
                     if (!tile || tile.children[subIdx + 1].classList.contains('obs-full')) continue;
 
-                    const tInset = 0.05; // subcell coords inset to avoid exact-corner ties
+                    const tInset = 0.05;
                     const baseX = gx;
                     const baseY = gy;
+                    
+                    // 목표 지점: 중앙 + 4꼭지점 + 인셋 보정점
                     const targetPoints = [
                         {x: baseX + 0.5, y: baseY + 0.5},
+                        {x: baseX, y: baseY}, {x: baseX + 1, y: baseY},
+                        {x: baseX, y: baseY + 1}, {x: baseX + 1, y: baseY + 1},
                         {x: baseX + tInset, y: baseY + tInset},
                         {x: baseX + 1 - tInset, y: baseY + tInset},
                         {x: baseX + tInset, y: baseY + 1 - tInset},
                         {x: baseX + 1 - tInset, y: baseY + 1 - tInset}
                     ];
 
-                    // 방향 선택 시: 유닛 앞면 기준 좌우 45도(=총 90도 콘) 안쪽만 시야 체크
+                    // 방향 필터 (Direction Filter)
                     if (dir) {
-                        const tcx = baseX + 0.5; // subcell center
-                        const tcy = baseY + 0.5; // subcell center
-                        const dx = tcx - ocx;
-                        const dy = tcy - ocy;
+                        const tcx = baseX + 0.5;
+                        const tcy = baseY + 0.5;
                         const eps = 0.001;
-
                         if (dir === 'UP') {
-                            if (!(dy < -eps && Math.abs(dx) <= (-dy))) continue;
+                            const d = yT0 - tcy;
+                            if (d <= eps || tcx < (xL0 - d - eps) || tcx > (xR0 + d + eps)) continue;
                         } else if (dir === 'DOWN') {
-                            if (!(dy > eps && Math.abs(dx) <= (dy))) continue;
+                            const d = tcy - yB0;
+                            if (d <= eps || tcx < (xL0 - d - eps) || tcx > (xR0 + d + eps)) continue;
                         } else if (dir === 'LEFT') {
-                            if (!(dx < -eps && Math.abs(dy) <= (-dx))) continue;
+                            const d = xL0 - tcx;
+                            if (d <= eps || tcy < (yT0 - d - eps) || tcy > (yB0 + d + eps)) continue;
                         } else if (dir === 'RIGHT') {
-                            if (!(dx > eps && Math.abs(dy) <= (dx))) continue;
+                            const d = tcx - xR0;
+                            if (d <= eps || tcy < (yT0 - d - eps) || tcy > (yB0 + d + eps)) continue;
                         }
                     }
 
                     let isVisible = false;
-                    
                     outerCheck:
                     for (let op of originPoints) {
                         for (let tp of targetPoints) {
@@ -1518,6 +1553,26 @@ function showRangeDirOverlayAtTile(tx, ty) {
                     }
                 }
             }
+        }
+
+        // 2. 장애물 판정 함수 (장애물의 크기(w, h)를 인식하도록 수정)
+        function isRayBlocked(x0, y0, x1, y1, blockers, startTile) {
+            const tSubX = Math.floor(x1);
+            const tSubY = Math.floor(y1);
+
+            for (let b of blockers) {
+                // 목표 지점 자체는 가리지 않음
+                if(b.x === tSubX && b.y === tSubY && !b.isGapStopper) continue;
+
+                // [수정] b.w, b.h 값을 사용하여 미세 벽(Gap Stopper)도 올바르게 처리
+                const bw = b.w || 1;
+                const bh = b.h || 1;
+
+                if(lineIntersectsBox(x0, y0, x1, y1, b.x, b.y, bw, bh)) {
+                    return true;
+                }
+            }
+            return false;
         }
 
         function isRayBlocked(x0, y0, x1, y1, blockers, startTile) {
