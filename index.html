@@ -1541,7 +1541,7 @@ function showRangeDirOverlayAtTile(tx, ty) {
                     outerCheck:
                     for (let op of originPoints) {
                         for (let tp of targetPoints) {
-                            if (!isRayBlocked(op.x, op.y, tp.x, tp.y, blockers, origin)) {
+                            if (!isRayBlocked(op.x, op.y, tp.x, tp.y, blockers, gx, gy)) {
                                 isVisible = true;
                                 break outerCheck;
                             }
@@ -1556,41 +1556,25 @@ function showRangeDirOverlayAtTile(tx, ty) {
         }
 
         // 2. 장애물 판정 함수 (장애물의 크기(w, h)를 인식하도록 수정)
-        function isRayBlocked(x0, y0, x1, y1, blockers, startTile) {
-            const tSubX = Math.floor(x1);
-            const tSubY = Math.floor(y1);
-
+        
+        // 2. 장애물 판정 함수
+        // - 목표 subcell(gx,gy)은 '목표 지점 자체'로 보고 가리지 않음
+        // - 단, 대각선 핀홀을 막는 가상 벽(Gap Stopper)은 목표와 무관하게 차단
+        function isRayBlocked(x0, y0, x1, y1, blockers, targetSubX, targetSubY) {
             for (let b of blockers) {
-                // 목표 지점 자체는 가리지 않음
-                if(b.x === tSubX && b.y === tSubY && !b.isGapStopper) continue;
+                if (!b.isGapStopper && b.x === targetSubX && b.y === targetSubY) continue;
 
-                // [수정] b.w, b.h 값을 사용하여 미세 벽(Gap Stopper)도 올바르게 처리
                 const bw = b.w || 1;
                 const bh = b.h || 1;
 
-                if(lineIntersectsBox(x0, y0, x1, y1, b.x, b.y, bw, bh)) {
+                if (lineIntersectsBox(x0, y0, x1, y1, b.x, b.y, bw, bh)) {
                     return true;
                 }
             }
             return false;
         }
 
-        function isRayBlocked(x0, y0, x1, y1, blockers, startTile) {
-            const tSubX = Math.floor(x1);
-            const tSubY = Math.floor(y1);
-
-            for (let b of blockers) {
-                // 목표 지점 자체는 가리지 않음
-                if(b.x === tSubX && b.y === tSubY) continue;
-
-                if(lineIntersectsBox(x0, y0, x1, y1, b.x, b.y, 1, 1)) {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        function lineIntersectsBox(x1, y1, x2, y2, bx, by, bw, bh) {
+function lineIntersectsBox(x1, y1, x2, y2, bx, by, bw, bh) {
             const minX = bx;
             const minY = by;
             const maxX = bx + bw;
@@ -1618,20 +1602,17 @@ function showRangeDirOverlayAtTile(tx, ty) {
                         if (t < t1) t1 = t;
                     }
                 }
-            }
-
-            const EPS = 1e-9;
+            }            const EPS = 1e-9;
             const seg = t1 - t0;
 
             // 1) 실제로 박스 내부를 통과/겹치는 구간이 있으면 차단
             if (seg > EPS) return true;
 
             // 2) 한 점(꼭지점/변)만 '툭' 닿는 경우:
-            //    - 레이의 시작점(t≈0) 또는 도착점(t≈1)에서의 접촉은 "가리지 않음"
-            //      (사용자 규칙: 꼭지점에 닿기만 하면 시야가 체크되는 것으로 취급)
-            //    - 그 외(구간 중간에서의 한 점 접촉)는 벽 사이 '틈' 누수 방지를 위해 차단
+            //    - 시작점(t≈0)에서의 접촉만 "가리지 않음"
+            //    - 그 외(중간/도착점 포함)는 코너 누수(벽 뒤 1칸, 대각선 틈)를 막기 위해 차단
             const t = (t0 + t1) * 0.5;
-            if (t <= EPS || t >= 1.0 - EPS) return false;
+            if (t <= EPS) return false;
             return true;
         }
 
